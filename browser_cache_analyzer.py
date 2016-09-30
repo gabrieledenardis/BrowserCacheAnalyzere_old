@@ -23,6 +23,35 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Mouse cursor coordinates on left click over the application window
         self.mouse_press_position = None
 
+    ##########################################
+    # SECTION: SIGNALS AND SLOTS CONNECTIONS #
+    ##########################################
+
+        # Application "minimize" and "close" buttons
+        self.button_application_minimize.clicked.connect(self.showMinimized)
+        self.button_application_close.clicked.connect(self.close_application)
+
+    ##############################
+    # SECTION: CLOSE APPLICATION #
+    ##############################
+
+    def close_application(self):
+        """
+        Slot for application "close" button.
+        A message box will ask to confirm before quitting.
+        :return:
+        """
+
+        # Confirmation before quitting
+        msg_confirm_exit = QtGui.QMessageBox.question(QtGui.QMessageBox(), "Confirm",
+                                                      "Are you sure you want to quit?",
+                                                      QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                      QtGui.QMessageBox.No)
+
+        # If "yes" button clicked, quitting application
+        if msg_confirm_exit == QtGui.QMessageBox.Yes:
+            self.close()
+
     ######################################################################
     # SECTION: MOUSE METHODS OVERRIDE (Application window drag and drop) #
     ######################################################################

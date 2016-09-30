@@ -4,3 +4,4 @@
 # Project files
 *.pyc
 gui/python_converted_gui.py
+gui/icons_rc.py

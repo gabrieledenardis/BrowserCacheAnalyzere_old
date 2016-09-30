@@ -1,0 +1,6 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+    <file>icons/button_minimize.png</file>
+    <file>icons/button_close.png</file>
+</qresource>
+</RCC>
