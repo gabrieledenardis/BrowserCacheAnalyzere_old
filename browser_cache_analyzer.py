@@ -31,6 +31,13 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.button_application_minimize.clicked.connect(self.showMinimized)
         self.button_application_close.clicked.connect(self.close_application)
 
+    ###########################
+    # SECTION: WELCOME SCREEN #
+    ###########################
+
+        # Setting "welcome screen" as application start screen
+        self.stackedWidget.setCurrentIndex(0)
+
     ##############################
     # SECTION: CLOSE APPLICATION #
     ##############################
