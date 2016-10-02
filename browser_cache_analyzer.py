@@ -6,9 +6,12 @@ from PyQt4 import QtGui, QtCore
 
 # Python imports
 import platform
+import os
 
 # Project imports
 from gui import python_converted_gui
+from operating_systems import windows
+from utilities import utils
 
 
 class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMainWindow):
@@ -37,12 +40,30 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.line_system_hostname.setReadOnly(True)
         self.line_system_hostname.setFrame(False)
 
+        # "Table found browsers"
+        self.table_found_browsers.setColumnCount(4)
+        self.table_found_browsers.setAlternatingRowColors(True)
+        self.table_found_browsers.setColumnWidth(0, len("Icon") + 50)
+        self.table_found_browsers.setHorizontalHeaderLabels(['', 'Browser Name', 'Version', 'Installation Path'])
+        self.table_found_browsers.horizontalHeader().setResizeMode(1, QtGui.QHeaderView.Stretch)
+        self.table_found_browsers.horizontalHeader().setResizeMode(3, QtGui.QHeaderView.Stretch)
+        self.table_found_browsers.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.table_found_browsers.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        self.table_found_browsers.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+        self.table_found_browsers.setToolTip("Click on a row to select a browser")
+
     #######################
     # SECTION: ATTRIBUTES #
     #######################
 
         # Mouse cursor coordinates on left click over the application window
         self.mouse_press_position = None
+
+        # List of found browsers in the system
+        self.found_browsers_list = None
+
+        # Selection from "table found browsers"
+        self.found_browsers_table_selection = None
 
     ##########################################
     # SECTION: SIGNALS AND SLOTS CONNECTIONS #
@@ -54,6 +75,7 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
         # Other application elements
         self.button_welcome_screen_next.clicked.connect(self.set_browser_choice_screen)
+        self.table_found_browsers.itemClicked.connect(self.enable_button_browser_choice_screen_next)
 
     ###########################
     # SECTION: WELCOME SCREEN #
@@ -85,11 +107,49 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # "System info" group box visible
         self.groupBox_system_info.setVisible(True)
 
+        # "Next" button not enabled (No item selected from "table found browsers")
+        self.button_browser_choice_screen_next.setEnabled(False)
+
         # "System info" values
         self.line_system_os_name.setText(platform.system())
         self.line_system_release.setText(platform.release())
         self.line_system_release_version.setText(platform.version())
         self.line_system_hostname.setText(platform.node())
+
+        # Searching browsers in the system (depending on OS)
+        # Microsoft Windows
+        if "windows" in platform.system().lower():
+            self.found_browsers_list = windows.finder.browsers_finder(platform.release())
+        # Other OSs
+        # else:
+            # Code for other OSs #
+
+        # "Table found browsers"
+        for idx, brw in enumerate(self.found_browsers_list):
+            # Inserting a new row for each browser in "found browsers list"
+            self.table_found_browsers.insertRow(idx)
+            # Browser name (e.g "chrome" for Google Chrome) to match the right browser icon
+            browser_name = brw[0]
+            # Column 0 (browser icon)
+            self.table_found_browsers.setCellWidget(idx, 0, BrowserIconWidget(icon_name=browser_name))
+            # Columns 1, 2, 3 (found browser info)
+            self.table_found_browsers.setItem(idx, 1, QtGui.QTableWidgetItem(brw[1]))
+            self.table_found_browsers.setItem(idx, 2, QtGui.QTableWidgetItem(brw[2]))
+            self.table_found_browsers.setItem(idx, 3, QtGui.QTableWidgetItem(brw[3]))
+
+    def enable_button_browser_choice_screen_next(self):
+        """
+        Slot for "table found browsers".
+        Enabling "next" button on "browser choice screen" if an item from "table found browser" is selected.
+        :return:
+        """
+
+        # Selection from "table found browsers"
+        self.found_browsers_table_selection = self.table_found_browsers.selectedItems()
+
+        # If selection, enabling "next" button
+        if self.found_browsers_table_selection:
+            self.button_browser_choice_screen_next.setEnabled(True)
 
     ##############################
     # SECTION: CLOSE APPLICATION #
@@ -139,3 +199,26 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Application window move (with mouse left button)
         if event.buttons() == QtCore.Qt.LeftButton:
             self.move(event.globalPos() - self.mouse_press_position)
+
+    ###########################################################################
+    # SECTION: BROWSER ICON WIDGET (Browsers icons in "table found browsers") #
+    ###########################################################################
+
+
+class BrowserIconWidget(QtGui.QLabel):
+    """
+    Selection for browser icon in "table found browsers".
+    Setting a Browser Icon Widget for the first column of "table found browsers", selecting the right path and icon
+    according to the browser name.
+    """
+
+    def __init__(self, parent=None, icon_name=None):
+        super(BrowserIconWidget, self).__init__(parent)
+
+        # Center alignment
+        self.setAlignment(QtCore.Qt.AlignCenter)
+
+        # Setting browser icon
+        icon_path = os.path.join(utils.ICONS_PATH, "{name}.png".format(name=icon_name))
+        browser_icon = QtGui.QPixmap(icon_path)
+        self.setPixmap(browser_icon)
