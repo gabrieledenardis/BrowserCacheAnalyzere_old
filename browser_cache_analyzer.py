@@ -40,6 +40,20 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.line_system_hostname.setReadOnly(True)
         self.line_system_hostname.setFrame(False)
 
+        # "Selected browser" group box elements
+        self.line_browser_selected.setStyleSheet("* {background-color: transparent; }")
+        self.line_browser_selected.setReadOnly(True)
+        self.line_browser_selected.setFrame(False)
+        self.line_browser_version.setStyleSheet("* {background-color: transparent; }")
+        self.line_browser_version.setReadOnly(True)
+        self.line_browser_version.setFrame(False)
+        self.line_browser_install_path.setStyleSheet("* {background-color: transparent; }")
+        self.line_browser_install_path.setReadOnly(True)
+        self.line_browser_install_path.setFrame(False)
+        self.line_browser_default_cache_path.setStyleSheet("* {background-color: transparent; }")
+        self.line_browser_default_cache_path.setReadOnly(True)
+        self.line_browser_default_cache_path.setFrame(False)
+
         # "Table found browsers"
         self.table_found_browsers.setColumnCount(4)
         self.table_found_browsers.setAlternatingRowColors(True)
@@ -65,6 +79,12 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Selection from "table found browsers"
         self.found_browsers_table_selection = None
 
+        # Matching browser key in "browsers default cache paths dictionary" (e.g "chrome" for "Google Chrome")
+        self.matching_browser_key = None
+
+        # Default cache path for selected browser
+        self.default_cache_path = None
+
     ##########################################
     # SECTION: SIGNALS AND SLOTS CONNECTIONS #
     ##########################################
@@ -76,6 +96,7 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Other application elements
         self.button_welcome_screen_next.clicked.connect(self.set_browser_choice_screen)
         self.table_found_browsers.itemClicked.connect(self.enable_button_browser_choice_screen_next)
+        self.button_browser_choice_screen_next.clicked.connect(self.set_folder_choice_screen)
 
     ###########################
     # SECTION: WELCOME SCREEN #
@@ -151,6 +172,71 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         if self.found_browsers_table_selection:
             self.button_browser_choice_screen_next.setEnabled(True)
 
+    #################################
+    # SECTION: FOLDER CHOICE SCREEN #
+    #################################
+
+    def set_folder_choice_screen(self):
+        """
+        Slot for "next" button in "browser choice screen".
+        Setting "folder choice screen": stacked widget index = 2 and visible "selected browser info" group box
+        with browser values.
+        Checking if selected cache path is valid for selected browser and analyzing it.
+        :return:
+        """
+
+        # Setting "folder choice screen"
+        self.stackedWidget.setCurrentIndex(2)
+
+        # "Selected browser" group box visible
+        self.groupBox_selected_browser_info.setVisible(True)
+
+        # Values for selected browser from "table found browsers" selection
+        browser_name = self.found_browsers_table_selection[0].text()
+        browser_version = self.found_browsers_table_selection[1].text()
+        browser_install_path = self.found_browsers_table_selection[2].text()
+
+        # Default cache paths for supported browsers
+        for k in utils.BROWSERS_DEFAULT_CACHE_PATHS.keys():
+            # A key in dictionary matches browser name
+            if k[0] in str(browser_name).lower():
+                self.matching_browser_key = k[0]
+                # Retrieving default path in dictionary
+                self.default_cache_path = utils.BROWSERS_DEFAULT_CACHE_PATHS.get(
+                    (self.matching_browser_key, platform.system().lower(), platform.release()),
+                    "Missing default cache path for selected browser")
+
+        # "Selected browser" values
+        self.line_browser_selected.setText(browser_name)
+        self.line_browser_version.setText(browser_version)
+        self.line_browser_install_path.setText(browser_install_path)
+        self.line_browser_install_path.home(False)
+        self.line_browser_default_cache_path.setText(self.default_cache_path)
+        self.line_browser_default_cache_path.home(False)
+
+        # "Selected browser" icon
+        icon_path = os.path.join(utils.ICONS_PATH, "{icon}.png".format(icon=self.matching_browser_key))
+        browser_icon = QtGui.QPixmap(icon_path)
+        self.label_browser_icon.setPixmap(browser_icon)
+
+        # Checking if default cache path for selected browser is valid
+        default_path_is_valid = utils.check_valid_cache_path(self.matching_browser_key, self.default_cache_path)
+
+        # Mark path for valid default cache path
+        if default_path_is_valid:
+            # Valid mark path
+            mark_path = os.path.join(utils.ICONS_PATH, "mark_valid.png")
+            self.label_browser_valid_path_mark.setToolTip("Path is valid for selected browser")
+        # Mark path for not valid default cache path
+        else:
+            # Not valid mark path
+            mark_path = os.path.join(utils.ICONS_PATH, "mark_not_valid.png")
+            self.label_browser_valid_path_mark.setToolTip("Path is not valid for selected browser")
+
+        # Setting mark
+        mark_icon = QtGui.QPixmap(mark_path)
+        self.label_browser_valid_path_mark.setPixmap(mark_icon)
+
     ##############################
     # SECTION: CLOSE APPLICATION #
     ##############################
@@ -208,8 +294,9 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 class BrowserIconWidget(QtGui.QLabel):
     """
     Selection for browser icon in "table found browsers".
-    Setting a Browser Icon Widget for the first column of "table found browsers", selecting the right path and icon
-    according to the browser name.
+    Setting a Browser Icon Widget for the first column of "table found browsers", selecting the right icon according
+    to the browser name.
+    :param icon_name: browser name from "found browser list"
     """
 
     def __init__(self, parent=None, icon_name=None):
