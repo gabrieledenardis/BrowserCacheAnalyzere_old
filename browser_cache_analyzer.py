@@ -66,6 +66,10 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.table_found_browsers.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.table_found_browsers.setToolTip("Click on a row to select a browser")
 
+        # "Analysis input folder" group box elements
+        self.line_analysis_input_path.setStyleSheet("* {background-color: transparent; }")
+        self.line_analysis_input_path.setReadOnly(True)
+
     #######################
     # SECTION: ATTRIBUTES #
     #######################
@@ -85,6 +89,9 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Default cache path for selected browser
         self.default_cache_path = None
 
+        # Current selected path to analyze
+        self.current_input_path = None
+
     ##########################################
     # SECTION: SIGNALS AND SLOTS CONNECTIONS #
     ##########################################
@@ -97,6 +104,8 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.button_welcome_screen_next.clicked.connect(self.set_browser_choice_screen)
         self.table_found_browsers.itemClicked.connect(self.enable_button_browser_choice_screen_next)
         self.button_browser_choice_screen_next.clicked.connect(self.set_folder_choice_screen)
+        self.button_analyze_default_path.clicked.connect(self.analyze_cache_path)
+        self.button_analyze_other_path.clicked.connect(self.analyze_cache_path)
 
     ###########################
     # SECTION: WELCOME SCREEN #
@@ -191,6 +200,9 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # "Selected browser" group box visible
         self.groupBox_selected_browser_info.setVisible(True)
 
+        # Button "confirm analysis" not enabled (No input folder is selected)
+        self.button_confirm_analysis.setEnabled(False)
+
         # Values for selected browser from "table found browsers" selection
         browser_name = self.found_browsers_table_selection[0].text()
         browser_version = self.found_browsers_table_selection[1].text()
@@ -233,9 +245,76 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
             mark_path = os.path.join(utils.ICONS_PATH, "mark_not_valid.png")
             self.label_browser_valid_path_mark.setToolTip("Path is not valid for selected browser")
 
+            # Disabling "analyze default path" button if default path is not valid
+            self.button_analyze_default_path.setEnabled(False)
+
         # Setting mark
         mark_icon = QtGui.QPixmap(mark_path)
         self.label_browser_valid_path_mark.setPixmap(mark_icon)
+
+    def analyze_cache_path(self):
+        """
+        Slot for "default" button and "other path" button .
+        A path to analyze will be chosen and checked to be valid for selected browser.
+        """
+
+        # Detecting clicked button ("default" or "other path")
+        clicked_button = self.sender().objectName()
+
+        # "Default" path button
+        if clicked_button == "button_analyze_default_path":
+            # Setting "current input path" as "default path"
+            self.current_input_path = self.default_cache_path
+
+            # Displaying selected input path (default path)
+            self.line_analysis_input_path.setText(self.current_input_path)
+            self.line_analysis_input_path.home(False)
+
+            # Setting "confirm and start" button enabled if a valid path is selected
+            self.button_confirm_analysis.setEnabled(True)
+        # "Other path" button
+        elif clicked_button == "button_analyze_other_path":
+            # Selecting an input path to analyze
+            dialog_input_path = QtGui.QFileDialog().getExistingDirectory(self, "Select a cache folder to analyze",
+                                                                         os.path.join("C:", os.sep, "Users",
+                                                                                      unicode(os.environ['USERNAME']),
+                                                                                      "Desktop"),
+                                                                         QtGui.QFileDialog.DontUseNativeDialog |
+                                                                         QtGui.QFileDialog.ShowDirsOnly |
+                                                                         QtGui.QFileDialog.ReadOnly)
+
+            # Convert QString from QDialog to unicode
+            dialog_input_path = unicode(dialog_input_path)
+
+            # Checking if selected path is valid for selected browser
+            other_path_is_valid = utils.check_valid_cache_path(self.matching_browser_key, dialog_input_path)
+
+            # Selected path to analyze is correct
+            if other_path_is_valid:
+                # Setting "current input path" as selected path from QDialog
+                self.current_input_path = dialog_input_path
+
+                self.line_analysis_input_path.setText(self.current_input_path.replace("/", "\\"))
+                self.line_analysis_input_path.home(False)
+
+                # Setting "confirm and start" button enabled if a valid path is selected
+                self.button_confirm_analysis.setEnabled(True)
+            # Selected path to analyze is not correct
+            else:
+                # Path is selected but not correct
+                if dialog_input_path:
+                    browser = self.found_browsers_table_selection[0].text()
+
+                    QtGui.QMessageBox.warning(QtGui.QMessageBox(), "Wrong input path",
+                                              "{path} <br> is not correct for {browser}"
+                                              .format(path=dialog_input_path, browser=browser),
+                                              QtGui.QMessageBox.Yes)
+
+                # No selected path to analyze
+                else:
+                    QtGui.QMessageBox.information(QtGui.QMessageBox(), "No selected path",
+                                                  "Seems you did not select an input folder. <br> Please selected one",
+                                                  QtGui.QMessageBox.Yes)
 
     ##############################
     # SECTION: CLOSE APPLICATION #
