@@ -503,7 +503,7 @@
     <item row="2" column="0" colspan="2">
      <widget class="QStackedWidget" name="stackedWidget">
       <property name="currentIndex">
-       <number>2</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="page">
        <layout class="QGridLayout" name="gridLayout_5">
@@ -1059,6 +1059,47 @@
          </spacer>
         </item>
        </layout>
+      </widget>
+      <widget class="QWidget" name="page_4">
+       <widget class="QPushButton" name="button_stop_analysis">
+        <property name="geometry">
+         <rect>
+          <x>370</x>
+          <y>230</y>
+          <width>160</width>
+          <height>30</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>160</width>
+          <height>30</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>160</width>
+          <height>30</height>
+         </size>
+        </property>
+        <property name="font">
+         <font>
+          <family>Source Sans Pro</family>
+          <pointsize>11</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Stop analysis</string>
+        </property>
+       </widget>
       </widget>
      </widget>
     </item>

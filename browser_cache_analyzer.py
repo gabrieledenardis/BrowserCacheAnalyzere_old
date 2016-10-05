@@ -12,6 +12,7 @@ import os
 from gui import python_converted_gui
 from operating_systems import windows
 from utilities import utils
+from browsers import chrome
 
 
 class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMainWindow):
@@ -92,6 +93,9 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Current selected path to analyze
         self.current_input_path = None
 
+        # Analyzer thread for "Google chrome"
+        self.chrome_analyzer_thread = None
+
     ##########################################
     # SECTION: SIGNALS AND SLOTS CONNECTIONS #
     ##########################################
@@ -106,6 +110,8 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.button_browser_choice_screen_next.clicked.connect(self.set_folder_choice_screen)
         self.button_analyze_default_path.clicked.connect(self.analyze_cache_path)
         self.button_analyze_other_path.clicked.connect(self.analyze_cache_path)
+        self.button_confirm_analysis.clicked.connect(self.set_analysis_screen)
+        self.button_stop_analysis.clicked.connect(self.stop_analysis)
 
     ###########################
     # SECTION: WELCOME SCREEN #
@@ -254,7 +260,7 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
     def analyze_cache_path(self):
         """
-        Slot for "default" button and "other path" button .
+        Slot for "default" button and "other path" button.
         A path to analyze will be chosen and checked to be valid for selected browser.
         """
 
@@ -315,6 +321,37 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
                     QtGui.QMessageBox.information(QtGui.QMessageBox(), "No selected path",
                                                   "Seems you did not select an input folder. <br> Please selected one",
                                                   QtGui.QMessageBox.Yes)
+
+    ############################
+    # SECTION: ANALYSIS SCREEN #
+    ############################
+
+    def set_analysis_screen(self):
+        """
+        Slot for "confirm and start analysis" button in "folder choice screen".
+        Setting "analysis screen": stacked widget index = 3 and start analysis.
+        :return:
+        """
+
+        # Setting "analysis screen"
+        self.stackedWidget.setCurrentIndex(3)
+
+        self.chrome_analyzer_thread = chrome.chrome_analyzer.ChromeAnalyzerThread(input_path=self.current_input_path)
+        self.chrome_analyzer_thread.start()
+
+    ##########################
+    # SECTION: STOP ANALYSIS #
+    ##########################
+
+    def stop_analysis(self):
+        """
+        Slot for "stop analysis" button.
+        Setting stop signal for "ChromeAnalyzerThread" to stop cache analysis.
+        :return:
+        """
+
+        # Setting stop signal
+        self.chrome_analyzer_thread.stop_signal.set()
 
     ##############################
     # SECTION: CLOSE APPLICATION #

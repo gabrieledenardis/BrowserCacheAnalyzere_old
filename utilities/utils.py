@@ -3,6 +3,7 @@
 
 # Python imports
 import os
+import datetime
 
 
 ###############################
@@ -71,3 +72,32 @@ def check_valid_cache_path(browser, cache_path):
     # Not existing path
     else:
         return False
+
+
+def webkit_to_unix_timestamp(webkit_time):
+    """
+    Convert from webkit timestamp to unix time stamp.
+    :param webkit_time: Chrome file creation time (Read within index file)
+    :return: Time in readable format
+    """
+
+    # From webkit time in microseconds to webkit time in seconds
+    microsec_in_sec = 1000000
+    webkit_time_microsec = int(webkit_time, 0)
+    webkit_time_sec = webkit_time_microsec / microsec_in_sec
+
+    # Webkit and unix starting date
+    webkit_time_start = datetime.datetime(1601, 1, 1)
+    unix_time_start = datetime.datetime(1970, 1, 1)
+
+    # Delta time in seconds between webkit and unix starting date
+    delta_starting_dates_seconds = (unix_time_start - webkit_time_start).total_seconds()
+
+    # Correct timestamp in unix time
+    correct_timestamp = webkit_time_sec - delta_starting_dates_seconds
+
+    # Unix timestamp in readable time
+    readable_time = datetime.datetime.fromtimestamp(correct_timestamp).strftime("%A - %d %B %Y - %H:%M:%S")
+
+    return readable_time
+
