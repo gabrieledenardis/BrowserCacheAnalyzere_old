@@ -123,7 +123,6 @@ class CacheEntry(object):
                                                  block_number=self.key_file_instance.block_number,
                                                  resource_size=self.key_data_size,
                                                  is_http_header="Unknown")
-
                 self.key_data = self.key_resource_instance.resource_data
 
 

@@ -20,14 +20,18 @@ class ChromeAnalyzerThread(QtCore.QThread):
     Analyzer for Google Chrome cache and Opera cache.
     """
 
+    update_results_table_signal = QtCore.pyqtSignal(int, str, str, str, str)
+
     def __init__(self, parent=None, input_path=None):
         super(ChromeAnalyzerThread, self).__init__(parent)
 
-        self.stop_signal = Event()
         self.input_path = input_path
 
-    def __del__(self):
-        self.wait()
+        # Signal from "stop analysis" button
+        self.stop_signal = Event()
+
+        # List of all cache entries found
+        self.cache_entries_list = []
 
     def run(self):
 
@@ -40,18 +44,16 @@ class ChromeAnalyzerThread(QtCore.QThread):
         # Address table size in "index" file
         table_size = index_header.read_index_file(index_file)["table_size"]
 
-        # List of all cache entries found
-        cache_entries_list = []
-
         with open(index_file, "rb") as f_index:
 
             # Skipping index header
             f_index.seek(index_header_dimension)
 
             for addresses in range(table_size):
+                # If "stop analysis" button is clicked, stopping analysis
                 if self.stop_signal.is_set():
-                    print "STOP!"
                     break
+
                 # Binary address (32 bits)
                 bin_address_in_index = format(struct.unpack("<I", f_index.read(4))[0], "032b")
 
@@ -71,7 +73,22 @@ class ChromeAnalyzerThread(QtCore.QThread):
                     # adding it to the entries list. Those entries are not in index table addresses
                     while cache_entry_instance.next_entry_address != 0:
                         # Adds cache entry to cache entries list
-                        cache_entries_list.append(cache_entry_instance)
+                        self.cache_entries_list.append(cache_entry_instance)
+
+                        if isinstance(cache_entry_instance.entry_data, dict) \
+                                and "Content-Type" in cache_entry_instance.entry_data.keys():
+
+                            self.update_results_table_signal.emit(len(self.cache_entries_list),
+                                                                  str(cache_entry_instance.key_hash),
+                                                                  cache_entry_instance.key_data,
+                                                                  cache_entry_instance.entry_data['Content-Type'],
+                                                                  cache_entry_instance.creation_time)
+                        else:
+                            self.update_results_table_signal.emit(len(self.cache_entries_list),
+                                                                  str(cache_entry_instance.key_hash),
+                                                                  cache_entry_instance.key_data,
+                                                                  "Unknown",
+                                                                  cache_entry_instance.creation_time)
 
                         # Next entry address (from current entry)
                         bin_next_entry_address = format(cache_entry_instance.next_entry_address, "032b")
@@ -85,5 +102,21 @@ class ChromeAnalyzerThread(QtCore.QThread):
                                                    block_dimension=cache_next_file_instance.block_dimension,
                                                    block_number=cache_next_file_instance.block_number)
 
-                    # Adds cache entry to cache entries list
-                    cache_entries_list.append(cache_entry_instance)
+                    # Adding cache entry to cache entries list
+                    self.cache_entries_list.append(cache_entry_instance)
+
+                    if isinstance(cache_entry_instance.entry_data, dict) and \
+                                    "Content-Type" in cache_entry_instance.entry_data.keys():
+
+                        self.update_results_table_signal.emit(len(self.cache_entries_list),
+                                                              str(cache_entry_instance.key_hash),
+                                                              cache_entry_instance.key_data,
+                                                              cache_entry_instance.entry_data['Content-Type'],
+                                                              cache_entry_instance.creation_time)
+                    else:
+                        self.update_results_table_signal.emit(len(self.cache_entries_list),
+                                                              str(cache_entry_instance.key_hash),
+                                                              cache_entry_instance.key_data,
+                                                              "Unknown",
+                                                              cache_entry_instance.creation_time)
+

@@ -71,6 +71,18 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.line_analysis_input_path.setStyleSheet("* {background-color: transparent; }")
         self.line_analysis_input_path.setReadOnly(True)
 
+        # "Table analysis results"
+        self.table_analysis_results.setColumnCount(4)
+        self.table_analysis_results.setAlternatingRowColors(True)
+        self.table_analysis_results.setHorizontalHeaderLabels(['Key hash', 'Key URL', 'Content Type',
+                                                               'Creation Time'])
+        self.table_analysis_results.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
+        self.table_analysis_results.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.table_analysis_results.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        self.table_analysis_results.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+        self.table_analysis_results.setSortingEnabled(True)
+        self.table_analysis_results.doubleClicked.connect(self.save_to_clipboard)
+
     #######################
     # SECTION: ATTRIBUTES #
     #######################
@@ -95,6 +107,9 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
         # Analyzer thread for "Google chrome"
         self.chrome_analyzer_thread = None
+
+        # List containing analysis results
+        self.analysis_results_list = []
 
     ##########################################
     # SECTION: SIGNALS AND SLOTS CONNECTIONS #
@@ -315,7 +330,6 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
                                               "{path} <br> is not correct for {browser}"
                                               .format(path=dialog_input_path, browser=browser),
                                               QtGui.QMessageBox.Yes)
-
                 # No selected path to analyze
                 else:
                     QtGui.QMessageBox.information(QtGui.QMessageBox(), "No selected path",
@@ -336,12 +350,35 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Setting "analysis screen"
         self.stackedWidget.setCurrentIndex(3)
 
+        # Clipboard to store copied values from "table analysis results"
+        self.clipboard = QtGui.QApplication.clipboard()
+
+        # "Chrome analyzer thread"
         self.chrome_analyzer_thread = chrome.chrome_analyzer.ChromeAnalyzerThread(input_path=self.current_input_path)
+        self.chrome_analyzer_thread.update_results_table_signal.connect(self.analysis_table_update)
+        self.chrome_analyzer_thread.finished.connect(self.analysis_finished)
         self.chrome_analyzer_thread.start()
 
-    ##########################
-    # SECTION: STOP ANALYSIS #
-    ##########################
+    def analysis_table_update(self, num_elem, key_hash, key_data, content_type, creation_time):
+        """
+        Slot for "update results table" signal from "chrome analyzer thread".
+        :param num_elem:
+        :param key_hash:
+        :param key_data:
+        :param content_type:
+        :param creation_time:
+        :param state:
+        :return:
+        """
+        self.table_analysis_results.insertRow(num_elem-1)
+        self.table_analysis_results.setItem(num_elem-1, 0, QtGui.QTableWidgetItem(key_hash))
+        self.table_analysis_results.setItem(num_elem-1, 1, QtGui.QTableWidgetItem(key_data))
+        self.table_analysis_results.setItem(num_elem-1, 2, QtGui.QTableWidgetItem(content_type))
+        self.table_analysis_results.setItem(num_elem-1, 3, QtGui.QTableWidgetItem(creation_time))
+        self.table_analysis_results.scrollToBottom()
+
+        # Copying "cache entries list" from "chrome analyzer thread" to avoid rescan for html export (if any).
+        self.analysis_results_list = self.chrome_analyzer_thread.cache_entries_list[:]
 
     def stop_analysis(self):
         """
@@ -352,6 +389,29 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
         # Setting stop signal
         self.chrome_analyzer_thread.stop_signal.set()
+
+        QtGui.QMessageBox.information(QtGui.QMessageBox(), "Analysis stopped", "Analysis stopped by user")
+
+    def analysis_finished(self):
+        """
+        Slot to delete "chrome analyzer thread" at the end of its execution.
+        :return:
+        """
+        del self.chrome_analyzer_thread
+        self.button_stop_analysis.setEnabled(False)
+
+    def save_to_clipboard(self):
+        """
+        Slot for double click on item in "table analysis results".
+        Saving selected table cell item in clipboard.
+        :return:
+        """
+
+        selection = self.table_analysis_results.currentItem().text()
+        self.clipboard.clear()
+        self.clipboard.setText(selection)
+        QtGui.QMessageBox.information(QtGui.QMessageBox(), "Clipboard",
+                                      "{selection}\nElement copied to clipboard".format(selection=selection))
 
     ##############################
     # SECTION: CLOSE APPLICATION #
