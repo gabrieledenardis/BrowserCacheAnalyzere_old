@@ -32,6 +32,7 @@ class CacheEntry(object):
         data_header_dimension = 8192
 
         self.key_data = ""
+        self.entry_data = ""
 
         with open(self.entry_file, "rb") as f_entry:
 

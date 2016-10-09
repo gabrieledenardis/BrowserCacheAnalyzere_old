@@ -4,6 +4,7 @@
 # Python imports
 import os
 import datetime
+import hashlib
 
 
 ###############################
@@ -73,6 +74,10 @@ def check_valid_cache_path(browser, cache_path):
     else:
         return False
 
+#############################
+# SECTION: TIME CONVERSIONS #
+#############################
+
 
 def webkit_to_unix_timestamp(webkit_time):
     """
@@ -80,10 +85,9 @@ def webkit_to_unix_timestamp(webkit_time):
     :param webkit_time: Chrome file creation time (Read within index file)
     :return: Time in readable format
     """
-
     # From webkit time in microseconds to webkit time in seconds
-    microsec_in_sec = 1000000
-    webkit_time_microsec = int(webkit_time, 0)
+    microsec_in_sec = float(1000000)
+    webkit_time_microsec = float(int(webkit_time, 0))
     webkit_time_sec = webkit_time_microsec / microsec_in_sec
 
     # Webkit and unix starting date
@@ -100,4 +104,33 @@ def webkit_to_unix_timestamp(webkit_time):
     readable_time = datetime.datetime.fromtimestamp(correct_timestamp).strftime("%A - %d %B %Y - %H:%M:%S")
 
     return readable_time
+
+#########################
+# SECTION: FILE HASHING #
+#########################
+
+
+def file_cryptography(file_path):
+    """
+    Calculating md5 and sha1 for selected file from list folder widget.
+    :param file_path: Selected file path of selected item in "list input folder" widget.
+    :return: File md5 and sha1.
+    """
+    hash_md5 = hashlib.md5()
+    hash_sha1 = hashlib.sha1()
+    buf_dimension = 65536
+
+    with open(file_path, 'rb') as f:
+        while True:
+            buf = f.read(buf_dimension)
+            if not buf:
+                break
+            hash_md5.update(buf)
+            hash_sha1.update(buf)
+    md5 = hash_md5.hexdigest()
+    sha1 = hash_sha1.hexdigest()
+
+    results = {'md5': md5, 'sha1': sha1}
+
+    return results
 

@@ -7,9 +7,11 @@ from PyQt4 import QtGui, QtCore
 # Python imports
 import platform
 import os
+import datetime
 
 # Project imports
 from gui import python_converted_gui
+from gui import python_converted_dialog_chrome
 from operating_systems import windows
 from utilities import utils
 from browsers import chrome
@@ -67,9 +69,28 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.table_found_browsers.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.table_found_browsers.setToolTip("Click on a row to select a browser")
 
-        # "Analysis input folder" group box elements
+        # "Folder choice screen" folder info elements
         self.line_analysis_input_path.setStyleSheet("* {background-color: transparent; }")
         self.line_analysis_input_path.setReadOnly(True)
+        self.label_folder_dimension.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.label_folder_num_elements.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.label_folder_creation_time.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.label_folder_last_access.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+
+        # "Folder choice screen" selected file info elements
+        self.label_file_selected.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.label_file_dimension.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.label_file_creation_time.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.label_file_last_modified.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.label_file_last_access.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.label_file_md5.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.label_file_sha1.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+
+        # "Folder choice screen" list folder
+        self.list_input_folder.setToolTip("Select on file to show info")
+
+        # Selected file ifno widget not enabled
+        self.widget_selected_file_info.setEnabled(False)
 
         # "Table analysis results"
         self.table_analysis_results.setColumnCount(4)
@@ -80,8 +101,9 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.table_analysis_results.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.table_analysis_results.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
         self.table_analysis_results.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+        self.table_analysis_results.setToolTip("Right click for options")
         self.table_analysis_results.setSortingEnabled(True)
-        self.table_analysis_results.doubleClicked.connect(self.save_to_clipboard)
+        self.table_analysis_results.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
     #######################
     # SECTION: ATTRIBUTES #
@@ -111,6 +133,12 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # List containing analysis results
         self.analysis_results_list = []
 
+        # QDialog for advanced info for "chrome" results
+        self.dialog_results_chrome = None
+
+        # Clipboard to store copied values
+        self.clipboard = None
+
     ##########################################
     # SECTION: SIGNALS AND SLOTS CONNECTIONS #
     ##########################################
@@ -125,8 +153,10 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.button_browser_choice_screen_next.clicked.connect(self.set_folder_choice_screen)
         self.button_analyze_default_path.clicked.connect(self.analyze_cache_path)
         self.button_analyze_other_path.clicked.connect(self.analyze_cache_path)
+        self.list_input_folder.itemClicked.connect(self.file_info)
         self.button_confirm_analysis.clicked.connect(self.set_analysis_screen)
         self.button_stop_analysis.clicked.connect(self.stop_analysis)
+        self.table_analysis_results.customContextMenuRequested.connect(self.table_results_context_menu)
 
     ###########################
     # SECTION: WELCOME SCREEN #
@@ -336,6 +366,79 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
                                                   "Seems you did not select an input folder. <br> Please selected one",
                                                   QtGui.QMessageBox.Yes)
 
+        # Selected folder dimension
+        folder_dimension = 0
+        for dir_path, dir_names, file_names in os.walk(self.current_input_path):
+            for f in file_names:
+                fp = os.path.join(dir_path, f)
+                folder_dimension += os.path.getsize(fp)
+
+        # Other folder info
+        folder_num_elements = len(os.listdir(self.current_input_path))
+        folder_creation_time = os.stat(self.current_input_path).st_ctime
+        folder_last_access_time = os.stat(self.current_input_path).st_atime
+        readable_creation_time = datetime.datetime.fromtimestamp(folder_creation_time)\
+            .strftime("%A - %d %B %Y - %H:%M:%S")
+        readable_last_access_time = datetime.datetime.fromtimestamp(folder_last_access_time) \
+            .strftime("%A - %d %B %Y - %H:%M:%S")
+
+        # Folder info labels text
+        self.label_folder_dimension.setText(str(folder_dimension))
+        self.label_folder_num_elements.setText(str(folder_num_elements))
+        self.label_folder_creation_time.setText(str(readable_creation_time))
+        self.label_folder_last_access.setText(str(readable_last_access_time))
+
+        # Enabling file info on folder selection
+        self.widget_selected_file_info.setEnabled(True)
+
+        # "Selected file info" widget elements
+        self.list_input_folder.clear()
+        self.list_input_folder.addItems(os.listdir(self.current_input_path))
+        self.label_file_selected.clear()
+        self.label_file_dimension.clear()
+        self.label_file_creation_time.clear()
+        self.label_file_last_modified.clear()
+        self.label_file_last_access.clear()
+        self.label_file_md5.clear()
+        self.label_file_sha1.clear()
+
+    def file_info(self):
+        """
+        Slot for "list input widget".
+        Calculating info about selected file from the list widget.
+        :return:
+        """
+
+        # Selected item from "list input folder" list widget
+        selected_item = unicode(self.list_input_folder.selectedItems()[0].text())
+        file_path = os.path.join(self.current_input_path, selected_item)
+
+        # Selected file hashing
+        md5 = utils.file_cryptography(file_path=file_path)['md5']
+        sha1 = utils.file_cryptography(file_path=file_path)['sha1']
+
+        # Other file info
+        file_size = os.stat(file_path).st_size
+        creation_time = os.stat(file_path).st_ctime
+        last_modified_time = os.stat(file_path).st_mtime
+        last_access_time = os.stat(file_path).st_atime
+
+        # Selected file info
+        creation_time_readable = datetime.datetime.fromtimestamp(creation_time).strftime("%A - %d %B %Y - %H:%M:%S")
+        last_modified_time_readable = datetime.datetime.fromtimestamp(last_modified_time)\
+            .strftime("%A - %d %B %Y - %H:%M:%S")
+        last_access_time_readable = datetime.datetime.fromtimestamp(last_access_time)\
+            .strftime("%A - %d %B %Y - %H:%M:%S")
+
+        # File info labels text
+        self.label_file_selected.setText(selected_item)
+        self.label_file_dimension.setText(str(file_size))
+        self.label_file_creation_time.setText(str(creation_time_readable))
+        self.label_file_last_modified.setText(str(last_modified_time_readable))
+        self.label_file_last_access.setText(str(last_access_time_readable))
+        self.label_file_md5.setText(str(md5))
+        self.label_file_sha1.setText(str(sha1))
+
     ############################
     # SECTION: ANALYSIS SCREEN #
     ############################
@@ -367,7 +470,6 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         :param key_data:
         :param content_type:
         :param creation_time:
-        :param state:
         :return:
         """
         self.table_analysis_results.insertRow(num_elem-1)
@@ -390,7 +492,8 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Setting stop signal
         self.chrome_analyzer_thread.stop_signal.set()
 
-        QtGui.QMessageBox.information(QtGui.QMessageBox(), "Analysis stopped", "Analysis stopped by user")
+        QtGui.QMessageBox.information(QtGui.QMessageBox(), "Analysis stopped", "Analysis stopped by user",
+                                      QtGui.QMessageBox.Ok)
 
     def analysis_finished(self):
         """
@@ -400,18 +503,27 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         del self.chrome_analyzer_thread
         self.button_stop_analysis.setEnabled(False)
 
-    def save_to_clipboard(self):
+    def table_results_context_menu(self, position):
         """
-        Slot for double click on item in "table analysis results".
-        Saving selected table cell item in clipboard.
+        Slot for mouse right click on "table analysis results" to open a context menu for advanced results.
         :return:
         """
+        menu = QtGui.QMenu()
+        copy_to_clipboard_action = menu.addAction("Copy item to clipboard")
+        advanced_results_action = menu.addAction("Show advanced results")
+        action = menu.exec_(self.table_analysis_results.mapToGlobal(position))
 
-        selection = self.table_analysis_results.currentItem().text()
-        self.clipboard.clear()
-        self.clipboard.setText(selection)
-        QtGui.QMessageBox.information(QtGui.QMessageBox(), "Clipboard",
-                                      "{selection}\nElement copied to clipboard".format(selection=selection))
+        if action == advanced_results_action:
+            self.dialog_results_chrome = ChromeCustomDialog()
+            self.dialog_results_chrome.exec_()
+
+        if action == copy_to_clipboard_action:
+            selection = self.table_analysis_results.currentItem().text()
+            self.clipboard.clear()
+            self.clipboard.setText(selection)
+            QtGui.QMessageBox.information(QtGui.QMessageBox(), "Clipboard",
+                                          "{selection}\nElement copied to clipboard".format(selection=selection),
+                                          QtGui.QMessageBox.Ok)
 
     ##############################
     # SECTION: CLOSE APPLICATION #
@@ -485,3 +597,42 @@ class BrowserIconWidget(QtGui.QLabel):
         icon_path = os.path.join(utils.ICONS_PATH, "{name}.png".format(name=icon_name))
         browser_icon = QtGui.QPixmap(icon_path)
         self.setPixmap(browser_icon)
+
+
+class ChromeCustomDialog(QtGui.QDialog, python_converted_dialog_chrome.Ui_DialogResultsChrome):
+
+    def __init__(self, parent=None):
+        super(ChromeCustomDialog, self).__init__(parent)
+
+        # Setting up the application user interface from python converted gui
+        self.setupUi(self)
+
+        # Mouse cursor coordinates on left click over the application window
+        self.mouse_press_position = None
+
+        # Flag for frameless QDialog
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+
+    def mousePressEvent(self, event):
+        """
+        Override for QtGui.QWidget.mousePressEvent to calculate mouse position at click.
+        Event position is relative to the application window.
+        :param event: QtGui.QMouseEvent
+        :return:
+        """
+
+        # Mouse cursor coordinates relative to the application window
+        self.mouse_press_position = event.pos()
+
+    def mouseMoveEvent(self, event):
+        """
+        Override for QtGui.QWidget.mouseMoveEvent to drag the application window.
+        Event buttons indicates the button state when the event was generated.
+        Event position is the global position of the mouse cursor at the time of the event.
+        :param event: QtGui.QMouseEvent
+        :return:
+        """
+
+        # Application window move (with mouse left button)
+        if event.buttons() == QtCore.Qt.LeftButton:
+            self.move(event.globalPos() - self.mouse_press_position)
