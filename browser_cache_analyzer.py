@@ -30,32 +30,16 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
     ##########################################
 
         # "System info" group box elements
-        self.line_system_os_name.setStyleSheet("* {background-color: transparent; }")
-        self.line_system_os_name.setReadOnly(True)
-        self.line_system_os_name.setFrame(False)
-        self.line_system_release.setStyleSheet("* {background-color: transparent; }")
-        self.line_system_release.setReadOnly(True)
-        self.line_system_release.setFrame(False)
-        self.line_system_release_version.setStyleSheet("* {background-color: transparent; }")
-        self.line_system_release_version.setReadOnly(True)
-        self.line_system_release_version.setFrame(False)
-        self.line_system_hostname.setStyleSheet("* {background-color: transparent; }")
-        self.line_system_hostname.setReadOnly(True)
-        self.line_system_hostname.setFrame(False)
+        self.groupBox_system_info.setStyleSheet("QLineEdit { background-color: transparent }")
+        for item in self.groupBox_system_info.findChildren(QtGui.QLineEdit):
+            item.setReadOnly(True)
+            item.setFrame(False)
 
         # "Selected browser" group box elements
-        self.line_browser_selected.setStyleSheet("* {background-color: transparent; }")
-        self.line_browser_selected.setReadOnly(True)
-        self.line_browser_selected.setFrame(False)
-        self.line_browser_version.setStyleSheet("* {background-color: transparent; }")
-        self.line_browser_version.setReadOnly(True)
-        self.line_browser_version.setFrame(False)
-        self.line_browser_install_path.setStyleSheet("* {background-color: transparent; }")
-        self.line_browser_install_path.setReadOnly(True)
-        self.line_browser_install_path.setFrame(False)
-        self.line_browser_default_cache_path.setStyleSheet("* {background-color: transparent; }")
-        self.line_browser_default_cache_path.setReadOnly(True)
-        self.line_browser_default_cache_path.setFrame(False)
+        self.groupBox_selected_browser_info.setStyleSheet("QLineEdit { background-color: transparent }")
+        for item in self.groupBox_selected_browser_info.findChildren(QtGui.QLineEdit):
+            item.setReadOnly(True)
+            item.setFrame(False)
 
         # "Table found browsers"
         self.table_found_browsers.setColumnCount(4)
@@ -70,27 +54,22 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.table_found_browsers.setToolTip("Click on a row to select a browser")
 
         # "Folder choice screen" folder info elements
-        self.line_analysis_input_path.setStyleSheet("* {background-color: transparent; }")
+        self.line_analysis_input_path.setStyleSheet("background-color: transparent")
         self.line_analysis_input_path.setReadOnly(True)
-        self.label_folder_dimension.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.label_folder_num_elements.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.label_folder_creation_time.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.label_folder_last_access.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
 
-        # "Folder choice screen" selected file info elements
-        self.label_file_selected.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.label_file_dimension.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.label_file_creation_time.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.label_file_last_modified.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.label_file_last_access.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.label_file_md5.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.label_file_sha1.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        # Setting text for all results label in "Analysis folder" groupBox selectable by mouse
+        for label in self.groupBox_analysis_folder.findChildren(QtGui.QLabel):
+            if "label_folder" in label.objectName() or "label_file" in label.objectName():
+                label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
 
         # "Folder choice screen" list folder
         self.list_input_folder.setToolTip("Select on file to show info")
 
-        # Selected file ifno widget not enabled
-        self.widget_selected_file_info.setEnabled(False)
+        # "Folder preview" groupBox
+        self.groupBox_folder_preview.setStyleSheet("QLabel { color: rgb(70, 70, 70) }")
+        for label in self.groupBox_folder_preview.findChildren(QtGui.QLabel):
+            if "label_file" in label.objectName():
+                label.clear()
 
         # "Table analysis results"
         self.table_analysis_results.setColumnCount(4)
@@ -388,19 +367,9 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.label_folder_creation_time.setText(str(readable_creation_time))
         self.label_folder_last_access.setText(str(readable_last_access_time))
 
-        # Enabling file info on folder selection
-        self.widget_selected_file_info.setEnabled(True)
-
         # "Selected file info" widget elements
         self.list_input_folder.clear()
         self.list_input_folder.addItems(os.listdir(self.current_input_path))
-        self.label_file_selected.clear()
-        self.label_file_dimension.clear()
-        self.label_file_creation_time.clear()
-        self.label_file_last_modified.clear()
-        self.label_file_last_access.clear()
-        self.label_file_md5.clear()
-        self.label_file_sha1.clear()
 
     def file_info(self):
         """
@@ -514,7 +483,35 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         action = menu.exec_(self.table_analysis_results.mapToGlobal(position))
 
         if action == advanced_results_action:
+            current_table_row = self.table_analysis_results.currentRow()
+            current_result_item = self.analysis_results_list[current_table_row]
             self.dialog_results_chrome = ChromeCustomDialog()
+
+            self.dialog_results_chrome.line_res_key_data.setStyleSheet("background-color: transparent")
+            self.dialog_results_chrome.line_res_key_data.setFrame(False)
+            self.dialog_results_chrome.line_res_key_data.setReadOnly(True)
+
+            self.dialog_results_chrome.label_dialog_title.setText(str(current_result_item.key_hash))
+            self.dialog_results_chrome.label_res_key_hash.setText(str(current_result_item.key_hash))
+            self.dialog_results_chrome.label_res_next_entry_address.setText(str(current_result_item.next_entry_address))
+            self.dialog_results_chrome.label_res_rank_node_address.\
+                setText(str(current_result_item.rankings_node_address))
+            self.dialog_results_chrome.label_res_reuse_count.setText(str(current_result_item.reuse_count))
+            self.dialog_results_chrome.label_res_refetch_count.setText(str(current_result_item.refetch_count))
+            self.dialog_results_chrome.label_res_entry_state.setText(str(current_result_item.entry_state))
+            self.dialog_results_chrome.label_res_creation_time.setText(str(current_result_item.creation_time))
+            self.dialog_results_chrome.label_res_key_data_size.setText(str(current_result_item.key_data_size))
+            self.dialog_results_chrome.label_res_long_key_address.\
+                setText(str(current_result_item.long_key_data_address))
+            self.dialog_results_chrome.label_res_cache_entry_flags.setText(str(current_result_item.cache_entry_flags))
+            self.dialog_results_chrome.line_res_key_data.setText(str(current_result_item.key_data))
+            self.dialog_results_chrome.line_res_key_data.home(False)
+
+            # "Chrome advanced info" QDialog settings
+            for label in self.dialog_results_chrome.findChildren(QtGui.QLabel):
+                if "label_res" in label.objectName():
+                    label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+
             self.dialog_results_chrome.exec_()
 
         if action == copy_to_clipboard_action:
@@ -607,11 +604,17 @@ class ChromeCustomDialog(QtGui.QDialog, python_converted_dialog_chrome.Ui_Dialog
         # Setting up the application user interface from python converted gui
         self.setupUi(self)
 
+        # Stylesheet for QDialog background color
+        self.setStyleSheet(" background-color : lightgray")
+
         # Mouse cursor coordinates on left click over the application window
         self.mouse_press_position = None
 
         # Flag for frameless QDialog
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+
+        # Closing QDialog on "button close" click
+        self.button_dialog_close.clicked.connect(self.close)
 
     def mousePressEvent(self, event):
         """

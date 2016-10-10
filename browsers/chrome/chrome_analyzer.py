@@ -105,8 +105,8 @@ class ChromeAnalyzerThread(QtCore.QThread):
                     # Adding cache entry to cache entries list
                     self.cache_entries_list.append(cache_entry_instance)
 
-                    if isinstance(cache_entry_instance.entry_data, dict) and \
-                                    "Content-Type" in cache_entry_instance.entry_data.keys():
+                    if isinstance(cache_entry_instance.entry_data, dict) and "Content-Type" in \
+                            cache_entry_instance.entry_data.keys():
 
                         self.update_results_table_signal.emit(len(self.cache_entries_list),
                                                               str(cache_entry_instance.key_hash),
@@ -119,4 +119,3 @@ class ChromeAnalyzerThread(QtCore.QThread):
                                                               cache_entry_instance.key_data,
                                                               "Unknown",
                                                               cache_entry_instance.creation_time)
-
