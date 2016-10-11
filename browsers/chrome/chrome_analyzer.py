@@ -2,7 +2,7 @@
 # !/usr/bin/env python
 
 # PyQt4 imports
-from PyQt4 import QtGui, QtCore
+from PyQt4 import QtCore
 
 # Python imports
 import os
@@ -78,13 +78,13 @@ class ChromeAnalyzerThread(QtCore.QThread):
                         if isinstance(cache_entry_instance.entry_data, dict) \
                                 and "Content-Type" in cache_entry_instance.entry_data.keys():
 
-                            self.update_results_table_signal.emit(len(self.cache_entries_list),
+                            self.update_results_table_signal.emit(len(self.cache_entries_list)-1,
                                                                   str(cache_entry_instance.key_hash),
                                                                   cache_entry_instance.key_data,
                                                                   cache_entry_instance.entry_data['Content-Type'],
                                                                   cache_entry_instance.creation_time)
                         else:
-                            self.update_results_table_signal.emit(len(self.cache_entries_list),
+                            self.update_results_table_signal.emit(len(self.cache_entries_list)-1,
                                                                   str(cache_entry_instance.key_hash),
                                                                   cache_entry_instance.key_data,
                                                                   "Unknown",
@@ -108,13 +108,13 @@ class ChromeAnalyzerThread(QtCore.QThread):
                     if isinstance(cache_entry_instance.entry_data, dict) and "Content-Type" in \
                             cache_entry_instance.entry_data.keys():
 
-                        self.update_results_table_signal.emit(len(self.cache_entries_list),
+                        self.update_results_table_signal.emit(len(self.cache_entries_list)-1,
                                                               str(cache_entry_instance.key_hash),
                                                               cache_entry_instance.key_data,
                                                               cache_entry_instance.entry_data['Content-Type'],
                                                               cache_entry_instance.creation_time)
                     else:
-                        self.update_results_table_signal.emit(len(self.cache_entries_list),
+                        self.update_results_table_signal.emit(len(self.cache_entries_list)-1,
                                                               str(cache_entry_instance.key_hash),
                                                               cache_entry_instance.key_data,
                                                               "Unknown",
