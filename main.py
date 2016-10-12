@@ -13,6 +13,5 @@ import browser_cache_analyzer
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
     application_main_window = browser_cache_analyzer.BrowserCacheAnalyzer()
-    application_main_window.setWindowFlags(QtCore.Qt.FramelessWindowHint)
     application_main_window.show()
     sys.exit(app.exec_())

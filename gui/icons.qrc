@@ -6,5 +6,8 @@
     <file>icons/arrow_right.png</file>
     <file>icons/magnifying_glass.png</file>
     <file>icons/magnifying_glass_data.png</file>
+    <file>icons/html.png</file>
+    <file>icons/stop.png</file>
+    <file>icons/button_power.png</file>
 </qresource>
 </RCC>

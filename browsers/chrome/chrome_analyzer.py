@@ -33,6 +33,9 @@ class ChromeAnalyzerThread(QtCore.QThread):
         # List of all cache entries found
         self.cache_entries_list = []
 
+        # Checking if thread stopped by user
+        self.stopped_by_user = False
+
     def run(self):
 
         # Chrome "index" file
@@ -52,6 +55,7 @@ class ChromeAnalyzerThread(QtCore.QThread):
             for addresses in range(table_size):
                 # If "stop analysis" button is clicked, stopping analysis
                 if self.stop_signal.is_set():
+                    self.stopped_by_user = True
                     break
 
                 # Binary address (32 bits)
