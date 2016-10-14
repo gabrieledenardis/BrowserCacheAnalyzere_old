@@ -537,6 +537,34 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.table_analysis_results.setItem(num_elem, 3, QtGui.QTableWidgetItem(creation_time))
         self.table_analysis_results.scrollToBottom()
 
+    def table_results_context_menu(self, position):
+        """
+        Slot for mouse right click on "table analysis results" to open a context menu for advanced results.
+        :return:
+        """
+        menu = QtGui.QMenu()
+        action_copy_to_clipboard = menu.addAction("Copy item to clipboard")
+        action_advanced_results = menu.addAction("Show advanced results")
+        action = menu.exec_(self.table_analysis_results.mapToGlobal(position))
+
+        if action == action_advanced_results:
+            # Retrieving selected item from table "analysis results"
+            # Position in results list = table row
+            current_table_row = self.table_analysis_results.currentRow()
+            current_result_item = self.chrome_analyzer_thread.cache_entries_list[current_table_row]
+
+            # Opening a custom QDialog with file preview
+            self.dialog_results_chrome = ChromeCustomDialog(item=current_result_item)
+            self.dialog_results_chrome.exec_()
+
+        if action == action_copy_to_clipboard:
+            selection = self.table_analysis_results.currentItem().text()
+            self.clipboard.clear()
+            self.clipboard.setText(selection)
+            QtGui.QMessageBox.information(QtGui.QMessageBox(), "Clipboard",
+                                          "{selection}\nElement copied to clipboard".format(selection=selection),
+                                          QtGui.QMessageBox.Ok)
+
     def stop_analysis(self):
         """
         Slot for "stop analysis" button.
@@ -577,33 +605,6 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
             self.button_stop_analysis_screen.setEnabled(False)
             self.button_back_analysis_screen.setEnabled(True)
 
-    def table_results_context_menu(self, position):
-        """
-        Slot for mouse right click on "table analysis results" to open a context menu for advanced results.
-        :return:
-        """
-        menu = QtGui.QMenu()
-        action_copy_to_clipboard = menu.addAction("Copy item to clipboard")
-        action_advanced_results = menu.addAction("Show advanced results")
-        action = menu.exec_(self.table_analysis_results.mapToGlobal(position))
-
-        if action == action_advanced_results:
-            # Retrieving selected item from table "analysis results"
-            # Position in results list = table row
-            current_table_row = self.table_analysis_results.currentRow()
-            current_result_item = self.chrome_analyzer_thread.cache_entries_list[current_table_row]
-
-            # Opening a custom QDialog with file preview
-            self.dialog_results_chrome = ChromeCustomDialog(item=current_result_item)
-            self.dialog_results_chrome.exec_()
-
-        if action == action_copy_to_clipboard:
-            selection = self.table_analysis_results.currentItem().text()
-            self.clipboard.clear()
-            self.clipboard.setText(selection)
-            QtGui.QMessageBox.information(QtGui.QMessageBox(), "Clipboard",
-                                          "{selection}\nElement copied to clipboard".format(selection=selection),
-                                          QtGui.QMessageBox.Ok)
 
 #########################
 # SECTION: EVENT FILTER #
@@ -611,55 +612,44 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
     def eventFilter(self, q_object, q_event):
         """
-
-        :param q_object:
-        :param q_event:
-        :return:
+        Filters events if this object has been installed as an event filter for the watched object.
+        :param q_object: QObject
+        :param q_event: QEvent
+        :return: eventFilter(q_object, q_event)
         """
 
-        # "System info" groupBox
-        if q_event.type() == QtCore.QEvent.HoverMove \
-                and q_object in self.groupBox_system_info.findChildren(QtGui.QLineEdit):
-            QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
-
-        # "Selected browser" groupBox
-        elif q_event.type() == QtCore.QEvent.HoverMove \
-                and q_object in self.groupBox_selected_browser_info.findChildren(QtGui.QLineEdit):
-            QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
-
-        # "Found browser" groupBox
-        elif q_event.type() == QtCore.QEvent.HoverMove \
-                and q_object == self.groupBox_found_browsers:
-            QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-
-        # "Lines edit" in "analysis input folder" groupBox
-        elif q_event.type() == QtCore.QEvent.HoverMove \
-                and q_object in self.groupBox_analysis_input_folder.findChildren(QtGui.QLineEdit):
-            for line in self.groupBox_analysis_input_folder.findChildren(QtGui.QLineEdit):
-                if not line.text().isEmpty():
+        # Mouse hover enter event
+        if q_event.type() == QtCore.QEvent.HoverEnter:
+            # "System info" groupBox
+            if q_object in self.groupBox_system_info.findChildren(QtGui.QLineEdit):
+                QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
+            # "Selected browser" groupBox
+            elif q_object in self.groupBox_selected_browser_info.findChildren(QtGui.QLineEdit):
+                QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
+            # "Found browser" groupBox
+            elif q_object == self.groupBox_found_browsers:
+                QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+            # "Lines edit" in "analysis input folder" groupBox
+            elif q_object in self.groupBox_analysis_input_folder.findChildren(QtGui.QLineEdit):
+                if not q_object.text().isEmpty():
                     QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
-
-        # "Lines edit" in "preview input folder" groupBox
-        elif q_event.type() == QtCore.QEvent.HoverMove \
-                and q_object in self.groupBox_preview_input_folder.findChildren(QtGui.QLineEdit):
-            for line in self.groupBox_preview_input_folder.findChildren(QtGui.QLineEdit):
-                if not line.text().isEmpty():
+            # "Lines edit" in "preview input folder" groupBox
+            elif q_object in self.groupBox_preview_input_folder.findChildren(QtGui.QLineEdit):
+                if not q_object.text().isEmpty():
                     QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
+            # "Line input recap"
+            elif q_object == self.line_input_path_recap:
+                    QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
+            # "Analysis results" groupBox
+            elif q_object == self.groupBox_analysis_results:
+                QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+        # Mouse hover leave event
+        elif q_event.type() == QtCore.QEvent.HoverLeave:
+            QtGui.QApplication.restoreOverrideCursor()
 
-        # "Line input recap"
-        elif q_event.type() == QtCore.QEvent.HoverMove \
-                and q_object == self.line_input_path_recap:
-            QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
-
-        # "Analysis results" groupBox
-        elif q_event.type() == QtCore.QEvent.HoverMove \
-                and q_object == self.groupBox_analysis_results:
-            QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-
-        else:
-            QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
-
+        # Pass the event on to the parent class
         return QtGui.QMainWindow.eventFilter(self, q_object, q_event)
+
 
 ##############################
 # SECTION: CLOSE APPLICATION #
@@ -739,10 +729,10 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         if event.buttons() == QtCore.Qt.LeftButton:
             self.move(event.globalPos() - self.mouse_press_position)
 
+
 ###########################################################################
 # SECTION: BROWSER ICON WIDGET (Browsers icons in "table found browsers") #
 ###########################################################################
-
 
 class BrowserIconWidget(QtGui.QLabel):
     """
