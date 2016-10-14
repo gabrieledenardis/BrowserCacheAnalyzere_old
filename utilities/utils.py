@@ -5,6 +5,7 @@
 import os
 import datetime
 import hashlib
+import psutil
 
 
 ###############################
@@ -45,10 +46,10 @@ BROWSERS_DEFAULT_CACHE_PATHS = {
 
 }
 
+
 ###################################
 # SECTION: CACHE PATH CORRECTNESS #
 ###################################
-
 
 def check_valid_cache_path(browser, cache_path):
     """
@@ -74,10 +75,31 @@ def check_valid_cache_path(browser, cache_path):
     else:
         return False
 
+
+###############################
+# SECTION: CHECK OPEN BROWSER #
+###############################
+
+def check_open_browser(browser):
+    """
+    Slot for "next" button in "browser choice screen".
+    Checking if selected browser is open.
+    :param browser: Browser key for selected browser (E.g. "chrome" for "Google Chrome").
+    :return: True or false for open or not browser
+    """
+
+    # Searching for browser process in open processes
+    for process in psutil.process_iter():
+        # Browser key found in a process name
+        if browser in process.name():
+            return True
+    # Browser key not found in a process name
+    return False
+
+
 #############################
 # SECTION: TIME CONVERSIONS #
 #############################
-
 
 def webkit_to_unix_timestamp(webkit_time):
     """
@@ -105,10 +127,10 @@ def webkit_to_unix_timestamp(webkit_time):
 
     return readable_time
 
+
 #########################
 # SECTION: FILE HASHING #
 #########################
-
 
 def file_cryptography(file_path):
     """
@@ -116,6 +138,7 @@ def file_cryptography(file_path):
     :param file_path: Selected file path of selected item in "list input folder" widget.
     :return: File md5 and sha1.
     """
+
     hash_md5 = hashlib.md5()
     hash_sha1 = hashlib.sha1()
     buf_dimension = 65536
@@ -133,4 +156,3 @@ def file_cryptography(file_path):
     results = {'md5': md5, 'sha1': sha1}
 
     return results
-

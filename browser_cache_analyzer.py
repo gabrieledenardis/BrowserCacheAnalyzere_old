@@ -167,10 +167,13 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Setting "welcome screen" as application start screen
         self.stackedWidget.setCurrentIndex(0)
 
-        # If "welcome screen", "system info" and "selected browser info" group boxes are not visible
+        # If "welcome screen", "system info" groupBox, "selected browser info" groupBox and application title and
+        # icon are not visible
         if self.stackedWidget.currentIndex() == 0:
-            self.groupBox_system_info.setVisible(False)
             self.groupBox_selected_browser_info.setVisible(False)
+            self.label_application_title.setVisible(False)
+            self.label_application_icon.setVisible(False)
+            self.groupBox_system_info.setVisible(False)
 
 ##################################
 # SECTION: BROWSER CHOICE SCREEN #
@@ -187,8 +190,10 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Setting "browser choice screen"
         self.stackedWidget.setCurrentIndex(1)
 
-        # "System info" group box visible
+        # "System info" group box and application title visible
         self.groupBox_system_info.setVisible(True)
+        self.label_application_icon.setVisible(True)
+        self.label_application_title.setVisible(True)
 
         # "Next" button not enabled (No item selected from "table found browsers")
         self.button_next_browser_choice_screen.setEnabled(False)
@@ -259,30 +264,45 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 ######################################
 
     def set_input_folder_screen(self):
+        """
+        Slot for "next" button in "browser choice screen" and "back" button in "analysis screen.
+        Setting "input folder screen": stacked widget index=2 and check for open selected browser.
+        Checking if selected cache path is valid for selected browser and analyzing it.
+        :return: nothing
+        """
 
         # Detecting clicked button ("next" in "browser choice screen" or "back" in "analysis results screen")
         clicked_button = self.sender().objectName()
 
         # "Next" button in "browser choice screen"
         if clicked_button == "button_next_browser_choice_screen":
-            self.groupBox_selected_browser_info.setVisible(True)
-
-            # If already visited "browser choice screen"
-            self.button_confirm_analysis.setEnabled(False)
-            self.stackedWidget.setCurrentIndex(2)
-            self.current_input_path = None
-
-            for line in self.groupBox_analysis_input_folder.findChildren(QtGui.QLineEdit):
-                line.clear()
-
-            for item in self.groupBox_preview_input_folder.findChildren((QtGui.QListWidget, QtGui.QLineEdit)):
-                item.clear()
 
             # Info for selected browser
             self.get_selected_browser_info()
 
-            # Selection for input cache folder to analyze
-            self.select_input_cache_path()
+            # Checking if selected browser is open
+            if utils.check_open_browser(browser=self.matching_browser_key):
+                browser_name = self.found_browsers_table_selection[0].text()
+                QtGui.QMessageBox.warning(QtGui.QMessageBox(), "Open browser",
+                                          "{browser} seems to be open. Please close it.".format(browser=browser_name),
+                                          QtGui.QMessageBox.Yes)
+
+            else:
+                self.groupBox_selected_browser_info.setVisible(True)
+
+                # If already visited "browser choice screen"
+                self.button_confirm_analysis.setEnabled(False)
+                self.stackedWidget.setCurrentIndex(2)
+                self.current_input_path = None
+
+                for line in self.groupBox_analysis_input_folder.findChildren(QtGui.QLineEdit):
+                    line.clear()
+
+                for item in self.groupBox_preview_input_folder.findChildren((QtGui.QListWidget, QtGui.QLineEdit)):
+                    item.clear()
+
+                # Selection for input cache folder to analyze
+                self.select_input_cache_path()
 
         # "Back" button in "analysis screen"
         elif clicked_button == "button_back_analysis_screen":
@@ -436,28 +456,35 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         selected_item = unicode(self.list_input_folder.selectedItems()[0].text())
         file_path = os.path.join(self.current_input_path, selected_item)
 
-        # Selected file info
-        file_dimension = os.stat(file_path).st_size
-        creation_time = os.stat(file_path).st_ctime
-        last_modified_time = os.stat(file_path).st_mtime
-        last_access_time = os.stat(file_path).st_atime
+        try:
 
-        creation_time_readable = datetime.datetime.fromtimestamp(creation_time).strftime("%A - %d %B %Y - %H:%M:%S")
-        last_modified_time_readable = datetime.datetime.fromtimestamp(last_modified_time) \
-            .strftime("%A - %d %B %Y - %H:%M:%S")
-        last_access_time_readable = datetime.datetime.fromtimestamp(last_access_time) \
-            .strftime("%A - %d %B %Y - %H:%M:%S")
+            # Selected file info
+            file_dimension = os.stat(file_path).st_size
+            creation_time = os.stat(file_path).st_ctime
+            last_modified_time = os.stat(file_path).st_mtime
+            last_access_time = os.stat(file_path).st_atime
 
-        md5 = utils.file_cryptography(file_path=file_path)['md5']
-        sha1 = utils.file_cryptography(file_path=file_path)['sha1']
+            creation_time_readable = datetime.datetime.fromtimestamp(creation_time).strftime("%A - %d %B %Y - %H:%M:%S")
+            last_modified_time_readable = datetime.datetime.fromtimestamp(last_modified_time) \
+                .strftime("%A - %d %B %Y - %H:%M:%S")
+            last_access_time_readable = datetime.datetime.fromtimestamp(last_access_time) \
+                .strftime("%A - %d %B %Y - %H:%M:%S")
 
-        self.line_file_selected.setText(selected_item)
-        self.line_file_dimension.setText(str(file_dimension))
-        self.line_file_creation_time.setText(str(creation_time_readable))
-        self.line_file_last_modified.setText(str(last_modified_time_readable))
-        self.line_file_last_access.setText(str(last_access_time_readable))
-        self.line_file_md5.setText(str(md5))
-        self.line_file_sha1.setText(str(sha1))
+            md5 = utils.file_cryptography(file_path=file_path)['md5']
+            sha1 = utils.file_cryptography(file_path=file_path)['sha1']
+
+            self.line_file_selected.setText(selected_item)
+            self.line_file_dimension.setText(str(file_dimension))
+            self.line_file_creation_time.setText(str(creation_time_readable))
+            self.line_file_last_modified.setText(str(last_modified_time_readable))
+            self.line_file_last_access.setText(str(last_access_time_readable))
+            self.line_file_md5.setText(str(md5))
+            self.line_file_sha1.setText(str(sha1))
+
+        except Exception as _:
+            QtGui.QMessageBox.critical(QtGui.QMessageBox(), "Error",
+                                       "Can not open file {item}".format(item=selected_item),
+                                       QtGui.QMessageBox.Yes)
 
 ############################
 # SECTION: ANALYSIS SCREEN #
@@ -583,9 +610,12 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 #########################
 
     def eventFilter(self, q_object, q_event):
+        """
 
-        # Restoring default cursor shape when leaving object
-        QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
+        :param q_object:
+        :param q_event:
+        :return:
+        """
 
         # "System info" groupBox
         if q_event.type() == QtCore.QEvent.HoverMove \
@@ -593,38 +623,41 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
             QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
 
         # "Selected browser" groupBox
-        if q_event.type() == QtCore.QEvent.HoverMove \
+        elif q_event.type() == QtCore.QEvent.HoverMove \
                 and q_object in self.groupBox_selected_browser_info.findChildren(QtGui.QLineEdit):
             QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
 
         # "Found browser" groupBox
-        if q_event.type() == QtCore.QEvent.HoverMove \
+        elif q_event.type() == QtCore.QEvent.HoverMove \
                 and q_object == self.groupBox_found_browsers:
             QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
 
         # "Lines edit" in "analysis input folder" groupBox
-        if q_event.type() == QtCore.QEvent.HoverMove \
+        elif q_event.type() == QtCore.QEvent.HoverMove \
                 and q_object in self.groupBox_analysis_input_folder.findChildren(QtGui.QLineEdit):
             for line in self.groupBox_analysis_input_folder.findChildren(QtGui.QLineEdit):
                 if not line.text().isEmpty():
                     QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
 
         # "Lines edit" in "preview input folder" groupBox
-        if q_event.type() == QtCore.QEvent.HoverMove \
+        elif q_event.type() == QtCore.QEvent.HoverMove \
                 and q_object in self.groupBox_preview_input_folder.findChildren(QtGui.QLineEdit):
             for line in self.groupBox_preview_input_folder.findChildren(QtGui.QLineEdit):
                 if not line.text().isEmpty():
                     QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
 
         # "Line input recap"
-        if q_event.type() == QtCore.QEvent.HoverMove \
+        elif q_event.type() == QtCore.QEvent.HoverMove \
                 and q_object == self.line_input_path_recap:
             QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
 
         # "Analysis results" groupBox
-        if q_event.type() == QtCore.QEvent.HoverMove \
+        elif q_event.type() == QtCore.QEvent.HoverMove \
                 and q_object == self.groupBox_analysis_results:
             QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+
+        else:
+            QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
 
         return QtGui.QMainWindow.eventFilter(self, q_object, q_event)
 
