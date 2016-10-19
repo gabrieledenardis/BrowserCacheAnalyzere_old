@@ -3,21 +3,22 @@
 
 # Python imports
 import struct
+import binascii
 
 # Project imports
 from utilities import utils
 
 
-def read_index_file(file_to_open):
+def read_index_header(index_to_open):
     """
     Reading chrome cache file "index"
     :param file_to_open: path to file index
     :return: values read in index file header
     """
-    with open(file_to_open, "rb") as f_index:
+    with open(index_to_open, "rb") as f_index:
 
         # Index file header fields
-        signature = struct.unpack("<I", f_index.read(4))[0]
+        signature = struct.unpack("I", f_index.read(4))[0]
         minor_version = struct.unpack("<h", f_index.read(2))[0]
         major_version = struct.unpack("<h", f_index.read(2))[0]
         number_of_entries = struct.unpack("<I", f_index.read(4))[0]

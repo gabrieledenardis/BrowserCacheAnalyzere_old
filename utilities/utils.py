@@ -6,6 +6,7 @@ import os
 import datetime
 import hashlib
 import psutil
+import platform
 
 
 ###############################
@@ -128,17 +129,63 @@ def webkit_to_unix_timestamp(webkit_time):
     return readable_time
 
 
-#########################
-# SECTION: FILE HASHING #
-#########################
+########################
+# SECTION: FOLDER INFO #
+########################
 
-def file_cryptography(file_path):
-    """
-    Calculating md5 and sha1 for selected file from list folder widget.
-    :param file_path: Selected file path of selected item in "list input folder" widget.
-    :return: File md5 and sha1.
+def get_folder_info(folder_path):
     """
 
+    :param folder_path:
+    :return: results
+    """
+
+    folder_dimension = 0
+    for dir_path, dir_names, file_names in os.walk(folder_path):
+        for f in file_names:
+            fp = os.path.join(dir_path, f)
+            folder_dimension += os.path.getsize(fp)
+
+    # Other values for selected folder
+    folder_elements = len(os.listdir(folder_path))
+    folder_creation_time = os.stat(folder_path).st_ctime
+    folder_last_access_time = os.stat(folder_path).st_atime
+    readable_creation_time = datetime.datetime.fromtimestamp(folder_creation_time) \
+        .strftime("%A - %d %B %Y - %H:%M:%S")
+    readable_last_access_time = datetime.datetime.fromtimestamp(folder_last_access_time) \
+        .strftime("%A - %d %B %Y - %H:%M:%S")
+
+    results = {'folder_dimension': folder_dimension, 'folder_elements': folder_elements,
+               'folder_creation_time': readable_creation_time, 'folder_last_access_time': readable_last_access_time}
+
+    return results
+
+
+######################
+# SECTION: FILE INFO #
+######################
+
+def get_file_info(file_path):
+    """
+
+    :param file_path:
+    :return:
+    """
+
+    # File info
+    file_dimension = os.stat(file_path).st_size
+    creation_time = os.stat(file_path).st_ctime
+    last_modified_time = os.stat(file_path).st_mtime
+    last_access_time = os.stat(file_path).st_atime
+
+    # Readable times
+    creation_time_readable = datetime.datetime.fromtimestamp(creation_time).strftime("%A - %d %B %Y - %H:%M:%S")
+    last_modified_time_readable = datetime.datetime.fromtimestamp(last_modified_time)\
+        .strftime("%A - %d %B %Y - %H:%M:%S")
+    last_access_time_readable = datetime.datetime.fromtimestamp(last_access_time) \
+        .strftime("%A - %d %B %Y - %H:%M:%S")
+
+    # Hash
     hash_md5 = hashlib.md5()
     hash_sha1 = hashlib.sha1()
     buf_dimension = 65536
@@ -153,6 +200,9 @@ def file_cryptography(file_path):
     md5 = hash_md5.hexdigest()
     sha1 = hash_sha1.hexdigest()
 
-    results = {'md5': md5, 'sha1': sha1}
+    results = {'file_dimension': file_dimension, 'creation_time': creation_time_readable,
+               'last_modified': last_modified_time_readable, 'last_access': last_access_time_readable, 'md5': md5,
+               'sha1': sha1}
 
     return results
+

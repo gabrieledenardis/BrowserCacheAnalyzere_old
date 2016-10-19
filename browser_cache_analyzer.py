@@ -6,15 +6,17 @@ from PyQt4 import QtGui, QtCore
 
 # Python imports
 import platform
-import os
 import datetime
+import os
+import math
+
 
 # Project imports
-from gui import python_converted_gui
 from gui import python_converted_dialog_chrome
 from operating_systems import windows
-from utilities import utils
+from gui import python_converted_gui
 from browsers import chrome
+from utilities import utils
 
 
 class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMainWindow):
@@ -28,9 +30,9 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Frameless window
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
 
-        ##########################################
-        # SECTION: APPLICATION ELEMENTS SETTINGS #
-        ##########################################
+##########################################
+# SECTION: APPLICATION ELEMENTS SETTINGS #
+##########################################
 
         # "System info" groupBox
         self.groupBox_system_info.setStyleSheet("QLineEdit { background-color: transparent }")
@@ -75,7 +77,7 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
         # "Folder preview" groupBox
         self.groupBox_preview_input_folder.setStyleSheet("color: rgb(70, 70, 70) ")
-        self.list_input_folder.setToolTip("Select a file to show info")
+        self.list_input_folder_preview.setToolTip("Select a file to show info")
         for line in self.groupBox_preview_input_folder.findChildren(QtGui.QLineEdit):
             line.setStyleSheet("background-color: transparent ")
             line.installEventFilter(self)
@@ -83,29 +85,43 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
             line.setFrame(False)
 
         #  "Table analysis results"
-        self.table_analysis_results.setColumnCount(4)
-        self.table_analysis_results.setHorizontalHeaderLabels(['Key Hash', 'Key URL', 'Content Type',
-                                                               'Creation Time'])
-        self.table_analysis_results.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
-        self.table_analysis_results.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
-        self.table_analysis_results.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
-        self.table_analysis_results.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
-        self.table_analysis_results.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.table_analysis_results.setToolTip("Right click for options")
-        self.table_analysis_results.setAlternatingRowColors(True)
-        self.table_analysis_results.setSortingEnabled(True)
+        self.table_analysis_preview.setColumnCount(4)
+        self.table_analysis_preview.setHorizontalHeaderLabels(
+            ['Key Hash', 'Key URL', 'Content Type', 'Creation Time']
+        )
+        self.table_analysis_preview.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
+        self.table_analysis_preview.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        self.table_analysis_preview.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.table_analysis_preview.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+        self.table_analysis_preview.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.table_analysis_preview.setToolTip("Right click for options")
+        self.table_analysis_preview.setAlternatingRowColors(True)
+        self.table_analysis_preview.setSortingEnabled(True)
 
         # "Analysis results" groupBox
-        self.groupBox_analysis_results.installEventFilter(self)
-        self.line_input_path_recap.setStyleSheet("background-color: transparent")
-        self.line_input_path_recap.installEventFilter(self)
-        self.line_input_path_recap.setReadOnly(True)
-        self.line_input_path_recap.setFrame(False)
+        self.line_input_path_analysis.setStyleSheet("background-color: transparent")
+        self.line_input_path_analysis.installEventFilter(self)
+        self.line_input_path_analysis.setReadOnly(True)
+        self.line_input_path_analysis.setFrame(False)
+
+        # "Exporting" groupBox
+        self.line_input_path_exporting.setStyleSheet("background-color: transparent")
+        self.line_input_path_exporting.installEventFilter(self)
+        self.line_input_path_exporting.setReadOnly(True)
+        self.line_input_path_exporting.setFrame(False)
+
+        self.line_output_path_exporting.setStyleSheet("background-color: transparent")
+        self.line_output_path_exporting.installEventFilter(self)
+        self.line_output_path_exporting.setReadOnly(True)
+        self.line_output_path_exporting.setFrame(False)
 
         # Application buttons
         for item in self.findChildren(QtGui.QPushButton):
-            item.setStyleSheet("QPushButton {background-color: transparent; border: 1px solid darkgray}"
-                               "QPushButton:hover {background-color: rgb(225,225,225)}")
+            item.setStyleSheet(
+                "QPushButton {background-color: transparent; border: 1px solid darkgray}"
+                "QPushButton:hover {background-color: rgb(225,225,225)}"
+            )
+
 
 #######################
 # SECTION: ATTRIBUTES #
@@ -126,17 +142,23 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Default cache path for selected browser
         self.default_cache_path = None
 
-        # Current selected path to analyze
+        # Current selected path to analyze and current output path
         self.current_input_path = None
+        self.current_output_path = None
 
         # Analyzer thread for "Google chrome"
         self.chrome_analyzer_thread = None
+        self.chrome_export_thread = None
+
+        # List containing analysis results
+        self.analysis_results_list = []
 
         # QDialog for advanced info for "chrome" results
         self.dialog_results_chrome = None
 
         # Clipboard to store copied values
         self.clipboard = None
+
 
 ##########################################
 # SECTION: SIGNALS AND SLOTS CONNECTIONS #
@@ -147,7 +169,7 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.button_application_minimize.clicked.connect(self.showMinimized)
 
         # Other application elements
-        self.table_analysis_results.customContextMenuRequested.connect(self.table_results_context_menu)
+        self.table_analysis_preview.customContextMenuRequested.connect(self.table_results_context_menu)
         self.table_found_browsers.itemClicked.connect(self.enable_button_next_browser_choice_screen)
         self.button_back_input_folder_screen.clicked.connect(self.set_browser_choice_screen)
         self.button_next_browser_choice_screen.clicked.connect(self.set_input_folder_screen)
@@ -158,22 +180,25 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.button_quit_analysis_screen.clicked.connect(self.close_application)
         self.button_confirm_analysis.clicked.connect(self.set_analysis_screen)
         self.button_stop_analysis_screen.clicked.connect(self.stop_analysis)
-        self.list_input_folder.itemClicked.connect(self.file_info)
+        self.button_stop_export_screen.clicked.connect(self.stop_export)
+        self.list_input_folder_preview.itemClicked.connect(self.file_info)
+        self.button_export_to_html.clicked.connect(self.export_to_html)
+
 
 ###########################
 # SECTION: WELCOME SCREEN #
 ###########################
 
-        # Setting "welcome screen" as application start screen
+        # "Welcome screen" as application start screen
         self.stackedWidget.setCurrentIndex(0)
 
-        # If "welcome screen", "system info" groupBox, "selected browser info" groupBox and application title and
-        # icon are not visible
+        # If "welcome screen": "system info", "selected browser info", application title and icon are not visible
         if self.stackedWidget.currentIndex() == 0:
             self.groupBox_selected_browser_info.setVisible(False)
             self.label_application_title.setVisible(False)
             self.label_application_icon.setVisible(False)
             self.groupBox_system_info.setVisible(False)
+
 
 ##################################
 # SECTION: BROWSER CHOICE SCREEN #
@@ -182,27 +207,25 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
     def set_browser_choice_screen(self):
         """
         Slot for "next" button in "welcome screen".
-        Setting "browser choice screen": stacked widget index = 1, visible "system info" group box with system values,
-        not visible "selected browser" group box and "table found browsers" containing found browsers in the system.
-        :return:
+        "Browser choice screen": stacked widget index = 1, visible "system info" groupBox with system values,
+        not visible "selected browser" groupBox and "table found browsers" containing found browsers in the system.
+        :return: nothing
         """
 
-        # Setting "browser choice screen"
+        # "Browser choice screen"
         self.stackedWidget.setCurrentIndex(1)
 
-        # "System info" group box and application title visible
-        self.groupBox_system_info.setVisible(True)
-        self.label_application_icon.setVisible(True)
+        # "System info", application title and icon are visible
         self.label_application_title.setVisible(True)
+        self.label_application_icon.setVisible(True)
+        self.groupBox_system_info.setVisible(True)
 
-        # "Next" button not enabled (No item selected from "table found browsers")
+        # "Next" button not enabled (no item selected from "table found browsers")
         self.button_next_browser_choice_screen.setEnabled(False)
 
-        # Cleaning "table found browsers" (if back from "folder choice screen")
-        self.table_found_browsers.setRowCount(0)
-
-        # "Selected browser info" groupBox not visible (if back from "folder choice screen")
+        # If back from "folder choice screen"
         self.groupBox_selected_browser_info.setVisible(False)
+        self.table_found_browsers.setRowCount(0)
 
         # Getting values for system info and installed browsers in the system
         self.get_system_info()
@@ -211,10 +234,8 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # "Table found browsers"
         for idx, brw in enumerate(self.found_browsers_list):
             self.table_found_browsers.insertRow(idx)
-
             # Browser name (e.g "chrome" for Google Chrome) to match the right browser icon
             browser_name = brw[0]
-
             # Table columns
             self.table_found_browsers.setCellWidget(idx, 0, BrowserIconWidget(icon_name=browser_name))
             self.table_found_browsers.setItem(idx, 1, QtGui.QTableWidgetItem(brw[1]))
@@ -255,9 +276,10 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         # Selection from "table found browsers"
         self.found_browsers_table_selection = self.table_found_browsers.selectedItems()
 
-        # If selection, enabling "next" button
+        # If an item is selected
         if self.found_browsers_table_selection:
             self.button_next_browser_choice_screen.setEnabled(True)
+
 
 ######################################
 # SECTION: INPUT CACHE FOLDER SCREEN #
@@ -266,7 +288,7 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
     def set_input_folder_screen(self):
         """
         Slot for "next" button in "browser choice screen" and "back" button in "analysis screen.
-        Setting "input folder screen": stacked widget index=2 and check for open selected browser.
+        "Input folder screen": stacked widget index=2 and check for open selected browser.
         Checking if selected cache path is valid for selected browser and analyzing it.
         :return: nothing
         """
@@ -276,17 +298,19 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
         # "Next" button in "browser choice screen"
         if clicked_button == "button_next_browser_choice_screen":
-
             # Info for selected browser
             self.get_selected_browser_info()
 
-            # Checking if selected browser is open
+            # If selected browser is open
             if utils.check_open_browser(browser=self.matching_browser_key):
                 browser_name = self.found_browsers_table_selection[0].text()
-                QtGui.QMessageBox.warning(QtGui.QMessageBox(), "Open browser",
-                                          "{browser} seems to be open. Please close it.".format(browser=browser_name),
-                                          QtGui.QMessageBox.Yes)
+                QtGui.QMessageBox.warning(
+                    QtGui.QMessageBox(), "Open browser",
+                    "{browser} seems to be open. Please close it.".format(browser=browser_name),
+                    QtGui.QMessageBox.Ok
+                )
 
+            # Selected browser is not open
             else:
                 self.groupBox_selected_browser_info.setVisible(True)
 
@@ -301,12 +325,22 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
                 for item in self.groupBox_preview_input_folder.findChildren((QtGui.QListWidget, QtGui.QLineEdit)):
                     item.clear()
 
-                # Selection for input cache folder to analyze
+                # Selection for input cache path to analyze
                 self.select_input_cache_path()
 
         # "Back" button in "analysis screen"
         elif clicked_button == "button_back_analysis_screen":
+
+            # If back from "analysis screen", deleting analyzer thread, resetting list of analysis results
+            if self.chrome_analyzer_thread:
+                del self.chrome_analyzer_thread
+                self.chrome_analyzer_thread = None
+                self.analysis_results_list = []
+
+
             self.stackedWidget.setCurrentIndex(2)
+            self.list_input_folder_preview.clear()
+            self.list_input_folder_preview.addItems(os.listdir(self.current_input_path))
 
     def get_selected_browser_info(self):
         """
@@ -326,7 +360,7 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
             # A key in dictionary matches browser name
             if k[0] in str(browser_name).lower():
                 self.matching_browser_key = k[0]
-                # Retrieving default path in dictionary
+                # Default path in dictionary
                 self.default_cache_path = utils.BROWSERS_DEFAULT_CACHE_PATHS.get(
                     (self.matching_browser_key, platform.system().lower(), platform.release()),
                     "Missing default cache path for selected browser")
@@ -349,16 +383,16 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
         # Valid default cache path
         if default_path_is_valid:
-            # Valid mark path
             mark_path = os.path.join(utils.ICONS_PATH, "mark_valid.png")
             self.label_browser_valid_path_mark.setToolTip("Path is valid for selected browser")
             self.button_analyze_default_path.setEnabled(True)
+
         # Not valid default cache path
         else:
             mark_path = os.path.join(utils.ICONS_PATH, "mark_not_valid.png")
             self.label_browser_valid_path_mark.setToolTip("Path is not valid for selected browser")
 
-        # Setting mark
+        # Mark for default path
         mark_icon = QtGui.QPixmap(mark_path)
         self.label_browser_valid_path_mark.setPixmap(mark_icon)
 
@@ -369,7 +403,7 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         :return: nothing
         """
 
-        # Detecting clicked button ("default" or "other path")
+        # Clicked button ("default" or "other path")
         clicked_button = self.sender().objectName()
 
         # "Default" path button
@@ -379,18 +413,16 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
             self.line_analysis_input_path.setText(self.current_input_path)
             self.line_analysis_input_path.home(False)
+
         # "Other path" button
         elif clicked_button == "button_analyze_other_path":
             # Selecting an input path to analyze
-            dialog_input_path = QtGui.QFileDialog().getExistingDirectory(self, "Select a cache folder to analyze",
-                                                                         os.path.join("C:", os.sep, "Users",
-                                                                                      unicode(os.environ['USERNAME']),
-                                                                                      "Desktop"),
-                                                                         QtGui.QFileDialog.DontUseNativeDialog |
-                                                                         QtGui.QFileDialog.ShowDirsOnly |
-                                                                         QtGui.QFileDialog.ReadOnly)
+            dialog_input_path = QtGui.QFileDialog().getExistingDirectory(
+                self, "Select a cache folder to analyze",
+                os.path.join("C:", os.sep, "Users", unicode(os.environ['USERNAME']), "Desktop"),
+                QtGui.QFileDialog.DontUseNativeDialog | QtGui.QFileDialog.ShowDirsOnly | QtGui.QFileDialog.ReadOnly
+            )
 
-            # Convert QString from QDialog to unicode
             dialog_input_path = unicode(dialog_input_path)
 
             # Checking if selected path is valid for selected browser
@@ -403,45 +435,39 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
                 self.line_analysis_input_path.setText(self.current_input_path.replace("/", "\\"))
                 self.line_analysis_input_path.home(False)
+
             # Selected path to analyze is not correct
             else:
                 # Path is selected but not correct
                 if dialog_input_path:
+                    # Browser name from table
                     browser = self.found_browsers_table_selection[0].text()
 
-                    QtGui.QMessageBox.warning(QtGui.QMessageBox(), "Wrong input path",
-                                              "{path} <br> is not correct for {browser}"
-                                              .format(path=dialog_input_path, browser=browser),
-                                              QtGui.QMessageBox.Yes)
+                    QtGui.QMessageBox.warning(
+                        QtGui.QMessageBox(), "Wrong input path",
+                        "{path} <br> is not correct for {browser}".format(path=dialog_input_path, browser=browser),
+                        QtGui.QMessageBox.Ok
+                    )
+
                 # No selected path to analyze
                 else:
-                    QtGui.QMessageBox.information(QtGui.QMessageBox(), "No selected path",
-                                                  "Seems you did not select an input folder. <br> Please selected one",
-                                                  QtGui.QMessageBox.Yes)
+                    QtGui.QMessageBox.information(
+                        QtGui.QMessageBox(), "No selected path",
+                        "Seems you did not select an input folder. <br> Please selected one",
+                        QtGui.QMessageBox.Ok
+                        )
 
-        # Selected cache folder info
+        # Selected cache path info
         if self.current_input_path:
-            folder_dimension = 0
-            for dir_path, dir_names, file_names in os.walk(self.current_input_path):
-                for f in file_names:
-                    fp = os.path.join(dir_path, f)
-                    folder_dimension += os.path.getsize(fp)
+            # Info for current selected input path
+            folder_info = utils.get_folder_info(folder_path=self.current_input_path)
 
-            folder_num_elements = len(os.listdir(self.current_input_path))
-            folder_creation_time = os.stat(self.current_input_path).st_ctime
-            folder_last_access_time = os.stat(self.current_input_path).st_atime
-            readable_creation_time = datetime.datetime.fromtimestamp(folder_creation_time) \
-                .strftime("%A - %d %B %Y - %H:%M:%S")
-            readable_last_access_time = datetime.datetime.fromtimestamp(folder_last_access_time) \
-                .strftime("%A - %d %B %Y - %H:%M:%S")
-
-            # Folder info labels text
-            self.line_folder_dimension.setText(str(folder_dimension))
-            self.line_folder_elements.setText(str(folder_num_elements))
-            self.line_folder_creation_time.setText(str(readable_creation_time))
-            self.line_folder_last_access.setText(str(readable_last_access_time))
-            self.list_input_folder.clear()
-            self.list_input_folder.addItems(os.listdir(self.current_input_path))
+            self.line_folder_dimension.setText(str(folder_info["folder_dimension"]))
+            self.line_folder_elements.setText(str(folder_info["folder_elements"]))
+            self.line_folder_creation_time.setText(str(folder_info["folder_creation_time"]))
+            self.line_folder_last_access.setText(str(folder_info["folder_last_access_time"]))
+            self.list_input_folder_preview.clear()
+            self.list_input_folder_preview.addItems(os.listdir(self.current_input_path))
 
             self.button_confirm_analysis.setEnabled(True)
 
@@ -453,38 +479,25 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         """
 
         # Selected item from "list input folder" list widget
-        selected_item = unicode(self.list_input_folder.selectedItems()[0].text())
+        selected_item = unicode(self.list_input_folder_preview.selectedItems()[0].text())
         file_path = os.path.join(self.current_input_path, selected_item)
 
         try:
-
             # Selected file info
-            file_dimension = os.stat(file_path).st_size
-            creation_time = os.stat(file_path).st_ctime
-            last_modified_time = os.stat(file_path).st_mtime
-            last_access_time = os.stat(file_path).st_atime
-
-            creation_time_readable = datetime.datetime.fromtimestamp(creation_time).strftime("%A - %d %B %Y - %H:%M:%S")
-            last_modified_time_readable = datetime.datetime.fromtimestamp(last_modified_time) \
-                .strftime("%A - %d %B %Y - %H:%M:%S")
-            last_access_time_readable = datetime.datetime.fromtimestamp(last_access_time) \
-                .strftime("%A - %d %B %Y - %H:%M:%S")
-
-            md5 = utils.file_cryptography(file_path=file_path)['md5']
-            sha1 = utils.file_cryptography(file_path=file_path)['sha1']
+            file_info = utils.get_file_info(file_path=file_path)
 
             self.line_file_selected.setText(selected_item)
-            self.line_file_dimension.setText(str(file_dimension))
-            self.line_file_creation_time.setText(str(creation_time_readable))
-            self.line_file_last_modified.setText(str(last_modified_time_readable))
-            self.line_file_last_access.setText(str(last_access_time_readable))
-            self.line_file_md5.setText(str(md5))
-            self.line_file_sha1.setText(str(sha1))
-
+            self.line_file_dimension.setText(str(file_info["file_dimension"]))
+            self.line_file_creation_time.setText(str(file_info["creation_time"]))
+            self.line_file_last_modified.setText(str(file_info["last_modified"]))
+            self.line_file_last_access.setText(str(file_info["last_access"]))
+            self.line_file_md5.setText(str(file_info["md5"]))
+            self.line_file_sha1.setText(str(file_info["sha1"]))
         except Exception as _:
-            QtGui.QMessageBox.critical(QtGui.QMessageBox(), "Error",
-                                       "Can not open file {item}".format(item=selected_item),
-                                       QtGui.QMessageBox.Yes)
+            QtGui.QMessageBox.critical(
+                QtGui.QMessageBox(), "Error", "Unable to open file <br> {item}".format(item=selected_item),
+                QtGui.QMessageBox.Ok
+            )
 
 ############################
 # SECTION: ANALYSIS SCREEN #
@@ -498,17 +511,18 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         """
 
         self.stackedWidget.setCurrentIndex(3)
+        self.progressBar_analysis.setValue(0)
 
         # Resetting table rows (if "analysis screen" already visited earlier)
-        self.table_analysis_results.setRowCount(0)
+        self.table_analysis_preview.setRowCount(0)
 
-        self.line_input_path_recap.setText(str(self.current_input_path.replace("/", "\\")))
+        self.line_input_path_analysis.setText(str(self.current_input_path.replace("/", "\\")))
 
-        # Clipboard to store copied values from "table analysis results"
+        # Clipboard to store copied values from "table analysis preview"
         self.clipboard = QtGui.QApplication.clipboard()
 
         # Settings for buttons in "analysis screen"
-        self.button_export_html_analysis_screen.setEnabled(False)
+        self.button_export_to_html.setEnabled(False)
         self.button_back_analysis_screen.setEnabled(False)
         self.button_stop_analysis_screen.setEnabled(True)
 
@@ -518,7 +532,7 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         self.chrome_analyzer_thread.finished.connect(self.analysis_terminated)
         self.chrome_analyzer_thread.start()
 
-    def analysis_table_update(self, num_elem, key_hash, key_data, content_type, creation_time):
+    def analysis_table_update(self, num_elem, tot_elem, key_hash, key_data, content_type, creation_time):
         """
         Slot for "update results table" signal from "chrome analyzer thread".
         :param num_elem: position of the element in list of found cache entry instances.
@@ -529,41 +543,50 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         :return: nothing
         """
 
-        # Insert cache entry values in "table analysis results"
-        self.table_analysis_results.insertRow(num_elem)
-        self.table_analysis_results.setItem(num_elem, 0, QtGui.QTableWidgetItem(key_hash))
-        self.table_analysis_results.setItem(num_elem, 1, QtGui.QTableWidgetItem(key_data))
-        self.table_analysis_results.setItem(num_elem, 2, QtGui.QTableWidgetItem(content_type))
-        self.table_analysis_results.setItem(num_elem, 3, QtGui.QTableWidgetItem(creation_time))
-        self.table_analysis_results.scrollToBottom()
+        # Insert cache entry values in "table analysis preview"
+        self.table_analysis_preview.insertRow(num_elem)
+        self.table_analysis_preview.setItem(num_elem, 0, QtGui.QTableWidgetItem(key_hash))
+        self.table_analysis_preview.setItem(num_elem, 1, QtGui.QTableWidgetItem(key_data))
+        self.table_analysis_preview.setItem(num_elem, 2, QtGui.QTableWidgetItem(content_type))
+        self.table_analysis_preview.setItem(num_elem, 3, QtGui.QTableWidgetItem(creation_time))
+        self.table_analysis_preview.scrollToBottom()
+
+        # Copying "cache entries list" from "chrome analyzer thread" to avoid rescan for html export (if any).
+        self.analysis_results_list = self.chrome_analyzer_thread.cache_entries_list[:]
+
+        value = float(100 * len(self.analysis_results_list)) / float(tot_elem)
+        self.progressBar_analysis.setValue(math.ceil(value))
 
     def table_results_context_menu(self, position):
         """
-        Slot for mouse right click on "table analysis results" to open a context menu for advanced results.
+        Slot for mouse right click on "table analysis preview" to open a context menu for advanced results.
         :return:
         """
+
         menu = QtGui.QMenu()
         action_copy_to_clipboard = menu.addAction("Copy item to clipboard")
         action_advanced_results = menu.addAction("Show advanced results")
-        action = menu.exec_(self.table_analysis_results.mapToGlobal(position))
+        action = menu.exec_(self.table_analysis_preview.mapToGlobal(position))
 
         if action == action_advanced_results:
-            # Retrieving selected item from table "analysis results"
+            # Retrieving selected item from table "analysis preview"
             # Position in results list = table row
-            current_table_row = self.table_analysis_results.currentRow()
-            current_result_item = self.chrome_analyzer_thread.cache_entries_list[current_table_row]
+            current_table_row = self.table_analysis_preview.currentRow()
+            current_result_item = self.analysis_results_list[current_table_row]
 
             # Opening a custom QDialog with file preview
             self.dialog_results_chrome = ChromeCustomDialog(item=current_result_item)
             self.dialog_results_chrome.exec_()
 
         if action == action_copy_to_clipboard:
-            selection = self.table_analysis_results.currentItem().text()
+            selection = self.table_analysis_preview.currentItem().text()
             self.clipboard.clear()
             self.clipboard.setText(selection)
-            QtGui.QMessageBox.information(QtGui.QMessageBox(), "Clipboard",
-                                          "{selection}\nElement copied to clipboard".format(selection=selection),
-                                          QtGui.QMessageBox.Ok)
+            QtGui.QMessageBox.information(
+                QtGui.QMessageBox(), "Clipboard",
+                "{selection}\nElement copied to clipboard".format(selection=selection),
+                QtGui.QMessageBox.Ok
+            )
 
     def stop_analysis(self):
         """
@@ -573,7 +596,7 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
         """
 
         # Setting stop signal
-        self.chrome_analyzer_thread.stop_signal.set()
+        self.chrome_analyzer_thread.stop_signal_analyzer.set()
 
     def analysis_terminated(self):
         """
@@ -586,9 +609,11 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
         # Analysis stopped by user
         if self.chrome_analyzer_thread.stopped_by_user:
-            QtGui.QMessageBox.warning(QtGui.QMessageBox(), "Analysis stopped",
-                                      "Analysis for {browser} stopped by user".format(browser=browser_name),
-                                      QtGui.QMessageBox.Ok)
+            QtGui.QMessageBox.warning(
+                QtGui.QMessageBox(), "Analysis stopped",
+                "Analysis for {browser} stopped by user".format(browser=browser_name),
+                QtGui.QMessageBox.Ok
+            )
 
             # Settings for buttons in "analysis screen"
             self.button_stop_analysis_screen.setEnabled(False)
@@ -596,14 +621,123 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
         # Analysis complete
         else:
-            QtGui.QMessageBox.information(QtGui.QMessageBox(), "Analysis terminated",
-                                          "Analysis for {browser} successfully terminated".format(browser=browser_name),
-                                          QtGui.QMessageBox.Ok)
+
+            if self.progressBar_analysis.value():
+                self.progressBar_analysis.setValue(100)
+
+            QtGui.QMessageBox.information(
+                QtGui.QMessageBox(), "Analysis terminated",
+                "Analysis for {browser} successfully terminated".format(browser=browser_name),
+                QtGui.QMessageBox.Ok
+            )
 
             # Settings for buttons in "analysis screen"
-            self.button_export_html_analysis_screen.setEnabled(True)
+            self.button_export_to_html.setEnabled(True)
             self.button_stop_analysis_screen.setEnabled(False)
             self.button_back_analysis_screen.setEnabled(True)
+
+
+###########################
+# SECTION: EXPORT TO HTML #
+###########################
+
+    def export_to_html(self):
+
+        # Selecting an output path for results
+        dialog_output_path = QtGui.QFileDialog().getExistingDirectory(
+            self, "Select an output path for results",
+            os.path.join("C:", os.sep, "Users", unicode(os.environ['USERNAME']), "Desktop"),
+            QtGui.QFileDialog.ShowDirsOnly
+        )
+
+        # Convert QString from QDialog to unicode
+        self.current_output_path = unicode(dialog_output_path)
+
+        if dialog_output_path:
+
+            self.stackedWidget.setCurrentIndex(4)
+
+            self.button_back_export_screen.setEnabled(False)
+            self.button_stop_export_screen.setEnabled(True)
+
+            self.line_input_path_exporting.setText(str(self.current_input_path.replace("/", "\\")))
+            current_datetime = datetime.datetime.now().strftime("%d-%b-%Y-%H_%M_%S")
+            scan_main_folder_name = "BrowserCacheAnalyzer-Scan[{date}]".format(date=current_datetime)
+            complete_output_path = os.path.join(self.current_output_path, scan_main_folder_name)
+            self.line_output_path_exporting.setText(str(complete_output_path.replace("/", "\\")))
+            self.progressBar_exporting.setValue(0)
+
+            self.chrome_export_thread = None
+            self.chrome_export_thread = chrome.chrome_export.ChromeExportThread(
+                input_path=self.current_input_path,
+                output_path=self.current_output_path,
+                scan_main_folder_name=scan_main_folder_name,
+                entries_to_export=self.analysis_results_list,
+                brw=self.found_browsers_table_selection[0].text(),
+                brw_ver=self.found_browsers_table_selection[1].text(),
+                brw_inst_path=self.found_browsers_table_selection[2].text(),
+                brw_def_path=self.default_cache_path
+            )
+            self.chrome_export_thread.update_export_progress_signal.connect(self.export_progress_update)
+            self.chrome_export_thread.finished.connect(self.export_terminated)
+            self.chrome_export_thread.start()
+        else:
+            QtGui.QMessageBox.information(
+                QtGui.QMessageBox(), "No selected path",
+                "Seems you did not select an output folder. <br> Please selected one", QtGui.QMessageBox.Ok
+            )
+
+    def export_progress_update(self, exported_entries=None, tot_entries=None):
+
+        value = float(100 * exported_entries) / float(tot_entries)
+        self.progressBar_exporting.setValue(math.ceil(value))
+
+    def stop_export(self):
+        """
+        Slot for "stop export" button.
+        Setting stop signal for "ChromeExportThread" to stop results exporting.
+        :return: nothing
+        """
+
+        # Setting stop signal
+        self.chrome_export_thread.stop_signal_export.set()
+
+    def export_terminated(self):
+        """
+        Slot for "finished signal" from "chrome export thread".
+        :return:
+        """
+
+        # Browser name from selection in "table found browser"
+        browser_name = self.found_browsers_table_selection[0].text()
+
+        # Analysis stopped by user
+        if self.chrome_export_thread.stopped_by_user:
+            QtGui.QMessageBox.warning(
+                QtGui.QMessageBox(), "Export stopped",
+                "Export for {browser} stopped by user".format(browser=browser_name),
+                QtGui.QMessageBox.Ok
+            )
+
+            # Settings for buttons in "analysis screen"
+            self.button_back_export_screen.setEnabled(True)
+            self.button_stop_export_screen.setEnabled(False)
+
+        # Analysis complete
+        else:
+
+            if self.progressBar_exporting.value() < 100:
+                self.progressBar_exporting.setValue(100)
+
+            QtGui.QMessageBox.information(
+                QtGui.QMessageBox(), "Export terminated",
+                "Export for {browser} successfully terminated".format(browser=browser_name),
+                QtGui.QMessageBox.Ok
+            )
+
+            # Settings for buttons in "analysis screen"
+            self.button_stop_export_screen.setEnabled(False)
+            self.button_back_export_screen.setEnabled(True)
 
 
 #########################
@@ -638,13 +772,14 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
                 if not q_object.text().isEmpty():
                     QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
             # "Line input recap"
-            elif q_object == self.line_input_path_recap:
+            elif q_object == self.line_input_path_analysis:
                     QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
-            # "Analysis results" groupBox
-            elif q_object == self.groupBox_analysis_results:
-                QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+
         # Mouse hover leave event
         elif q_event.type() == QtCore.QEvent.HoverLeave:
+            QtGui.QApplication.restoreOverrideCursor()
+
+        elif q_event.type() == QtCore.QEvent.MouseButtonRelease:
             QtGui.QApplication.restoreOverrideCursor()
 
         # Pass the event on to the parent class
@@ -664,27 +799,24 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
         thread_running = None
 
-        # Checking if analyzer thread is running
+        # If analyzer thread is running
         if self.chrome_analyzer_thread:
-            if self.chrome_analyzer_thread.isRunning():
-                thread_running = True
-            else:
-                thread_running = False
+            thread_running = self.chrome_analyzer_thread.isRunning()
 
         # Checking clicked button
         clicked_button = self.sender().objectName()
 
         # Confirmation before quitting during an analysis
-        if thread_running and \
-                (clicked_button == "button_quit_analysis_screen" or clicked_button == "button_application_close"):
+        if (thread_running and
+                (clicked_button == "button_quit_analysis_screen" or clicked_button == "button_application_close")):
 
             browser_name = self.found_browsers_table_selection[0].text()
 
-            msg_quit_analysis = QtGui.QMessageBox.question(QtGui.QMessageBox(), "Analysis running",
-                                                           "Analysis for {browser} is still running. Quit?"
-                                                           .format(browser=browser_name),
-                                                           QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                                                           QtGui.QMessageBox.No)
+            msg_quit_analysis = QtGui.QMessageBox.question(
+                QtGui.QMessageBox(), "Analysis running",
+                "Analysis for {browser} is still running. Quit?".format(browser=browser_name),
+                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No
+            )
 
             # If "yes" button clicked, quitting application
             if msg_quit_analysis == QtGui.QMessageBox.Yes:
@@ -692,10 +824,10 @@ class BrowserCacheAnalyzer(QtGui.QMainWindow, python_converted_gui.Ui_AnalyzerMa
 
         # Normal confirmation before quitting
         else:
-            msg_confirm_exit = QtGui.QMessageBox.question(QtGui.QMessageBox(), "Confirm",
-                                                          "Are you sure you want to quit?",
-                                                          QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                                                          QtGui.QMessageBox.No)
+            msg_confirm_exit = QtGui.QMessageBox.question(
+                QtGui.QMessageBox(), "Confirm", "Are you sure you want to quit?",
+                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                QtGui.QMessageBox.No)
 
             # If "yes" button clicked, quitting application
             if msg_confirm_exit == QtGui.QMessageBox.Yes:
