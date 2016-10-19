@@ -45,6 +45,10 @@ class ChromeExportThread(QtCore.QThread):
 
         self.stopped_by_user = False
 
+        self.jquery_path = os.path.join(os.path.dirname(__file__), "..", "..", "gui", "js", "jquery-3.1.1.min.js")
+        self.jquery_tables_path = os.path.join(os.path.dirname(__file__), "..", "..", "gui", "js", "jquery.dataTables.js")
+        self.jquery_datatables_css_path = os.path.join(os.path.dirname(__file__), "..", "..", "gui", "css", "jquery.dataTables.css")
+
     def run(self):
         # TODO:utc time?
         # TODO:readonly dirs?
@@ -277,17 +281,22 @@ class ChromeExportThread(QtCore.QThread):
         )
 
         html_string_results_table_style = """
-        <style>
-        thead {color:green;}
-        tbody {color:blue;}
-        table, th, td {border: 1px solid black;}
-        th {background: white;}
-        tr:nth-child(even) {background: white;}
-        tr:nth-child(odd) {background: lightgrey;}
-        </style>
+        <script type="text/javascript" charset="utf8" src=file://{jquery}></script>
+        <script type="text/javascript" charset="utf8" src=file://{jquery_tables}></script>
+        <link rel="stylesheet" type="text/css" href="file://{jquery_datatables_css}">
+
+        <script>
+        $(function() {{
+        $("#recap_table").DataTable();
+        }});
+        </script>
         </head>
         <body>
-        """
+        """.format(
+            jquery=self.jquery_path,
+            jquery_tables=self.jquery_tables_path,
+            jquery_datatables_css=self.jquery_datatables_css_path
+        )
 
         html_string_results_folders = """
         <h1> <b> Browser Cache Analyzer <br> Results report [{analysis_date}] </b> </h1>
@@ -310,9 +319,10 @@ class ChromeExportThread(QtCore.QThread):
         )
 
         html_string_results_table_header = """
-        <table style="width:100%">
+        <table id="recap_table" class="display" cellspacing="0" width="100%">
         <thead>
-        <tr> <th> # </th>
+        <tr>
+        <th> # </th>
         <th> Key Hash </th>
         <th> Content Type </th>
         <th> Key Url (preview) </th>
